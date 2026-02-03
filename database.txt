@@ -1,0 +1,29 @@
+LOCATIONS:Seattle|The sprawl of Seattle dominates the Pacific Northwest. Controlled by corporate interests and gang territories, it's a city of contrasts where gleaming arcologies tower over decrepit slums. The Salish-Shidhe Council controls the surrounding territory, creating constant political tension.
+
+LOCATIONS:The Barrens|The forgotten districts of Seattle where the desperate and the dangerous make their homes. No corporate or government presence means the strong survive and the weak don't. Gang warfare is constant, and toxic waste from corporate dumping makes whole sectors uninhabitable.
+
+CORPORATIONS:Aztechnology|One of the Big Ten megacorporations, Aztechnology maintains its headquarters in Tenochtitlan. Publicly known for consumer goods and magical research, they're rumored to practice blood magic and have ties to ancient Aztec death cults. Their Seattle presence is significant and growing.
+
+CORPORATIONS:Renraku|Japanese megacorp specializing in computers, robotics, and heavy industry. The Renraku Arcology in Seattle was once a symbol of corporate power until the AI incident. Now it stands as a monument to hubris, slowly being reclaimed by squatters and criminals.
+
+PEOPLE:Shadowrunners|Deniable assets. The expendables. Shadowrunners operate in the cracks between the corps, doing the dirty work no one else will touch. They live fast and die faster, but for those with skill and luck, the pay is extraordinary.
+
+PEOPLE:Johnny Spinrad|Street legend from the 2050s. Former corpo who burned his SIN and went underground after discovering his company's involvement in BTL trafficking. Now runs a safehouse in Redmond for runners who need to disappear.
+
+MAGIC:The Awakening|December 24, 2011. The world changed forever. Magic returned, and with it came metahumans, spirits, and dragons. Technology and magic now coexist in an uneasy balance, each trying to dominate the other.
+
+MAGIC:Mana|The fundamental force of magic. It flows through everything, stronger in some places than others. Toxic waste creates toxic mana. Places of death breed dark magic. Understanding mana flow is the key to powerful spellcasting.
+
+TECH:Cyberware|Direct neural-interface technology that replaces organic body parts with synthetic upgrades. Enhanced reflexes, built-in weapons, data processing - all available for the right price. But every upgrade costs a piece of your humanity, measured in Essence.
+
+TECH:The Matrix|The global computer network, accessed through direct neural interface. Here, data becomes reality, and hackers become gods. But the corps defend their secrets with lethal black IC that can fry your brain through your datajack.
+
+HISTORY:2061|The Year of Chaos. Crashes, both literal and digital, brought civilization to its knees. The second Matrix crash, the appearance of Halley's Comet, and catastrophic weather patterns reshaped the world. Many old powers fell, and new ones rose from the ashes.
+
+FACTIONS:Lone Star|The privatized police force that patrols most of Seattle under corporate contract. They're cops for hire, and they work for whoever pays - usually the corps. Street crime is ignored unless it affects the bottom line.
+
+CONFIDENTIAL:Project Icarus|[CLASSIFIED] Neural extraction experiments conducted at Black Site 7. Subject mortality rate: 94%. Promising results in memory transfer technology. Research continues under Dr. Helena Voss.
+
+CONFIDENTIAL:Operation Blackout|[CLASSIFIED] Planned EMP strike on Seattle grid. Contingency protocol for corporate uprising. Authorization: Director Level 9 only. Assets in position since 2074.
+
+CONFIDENTIAL:Subject Zero|[CLASSIFIED] First successful technomancer integration with facility mainframe. Subject displays anomalous matrix abilities without cyberware. Containment level: Maximum. Do not approach without psi-dampening equipment.
