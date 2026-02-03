@@ -1,0 +1,2086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BLACK DESERT RESEARCH TERMINAL</title>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --phosphor: #20c20e;
+            --phosphor-dim: #0a3d08;
+            --phosphor-glow: #39ff14;
+            --amber: #ffb000;
+            --amber-dim: #8b6914;
+            --red: #ff3333;
+            --cyan: #00d4aa;
+            --magenta: #ff00ff;
+            --bg: #050805;
+            --scanline-alpha: 0.08;
+            
+            --font-size-base: clamp(12px, 1.8vw, 18px);
+            --font-size-title: clamp(16px, 2.5vw, 24px);
+            --font-size-small: clamp(10px, 1.4vw, 14px);
+            --font-size-tiny: clamp(9px, 1.2vw, 12px);
+        }
+        
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        body {
+            background: var(--bg);
+            font-family: 'VT323', monospace;
+            color: var(--phosphor);
+            font-size: var(--font-size-base);
+        }
+        
+        /* ===== CRT MONITOR ===== */
+        .crt-monitor {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .crt-monitor::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 1px,
+                rgba(0, 0, 0, var(--scanline-alpha)) 1px,
+                rgba(0, 0, 0, var(--scanline-alpha)) 2px
+            );
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        .crt-monitor::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(
+                ellipse at center,
+                transparent 0%,
+                transparent 60%,
+                rgba(0, 0, 0, 0.15) 80%,
+                rgba(0, 0, 0, 0.4) 100%
+            );
+            pointer-events: none;
+            z-index: 101;
+        }
+        
+        @keyframes screenGlow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.98; }
+        }
+        
+        .screen-content {
+            animation: screenGlow 4s ease-in-out infinite;
+        }
+        
+        @keyframes crtBand {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+        
+        .crt-band {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(
+                180deg,
+                transparent 0%,
+                rgba(32, 194, 14, 0.03) 50%,
+                transparent 100%
+            );
+            animation: crtBand 8s linear infinite;
+            pointer-events: none;
+            z-index: 99;
+        }
+        
+        /* ===== LAYOUT ===== */
+        .screen-content {
+            position: relative;
+            z-index: 1;
+            height: 100%;
+            padding: clamp(8px, 1.5vw, 15px);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .top-bar {
+            display: flex;
+            gap: clamp(8px, 1.5vw, 15px);
+            margin-bottom: clamp(6px, 1vw, 10px);
+            height: clamp(100px, 20vh, 180px);
+            flex-shrink: 0;
+        }
+        
+        .header-panel {
+            flex: 1;
+            border: 1px solid var(--phosphor-dim);
+            background: rgba(5, 15, 5, 0.9);
+            padding: clamp(8px, 1.5vw, 15px);
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 0 30px rgba(32, 194, 14, 0.05);
+            min-width: 0;
+        }
+        
+        .system-title {
+            font-size: var(--font-size-title);
+            letter-spacing: clamp(1px, 0.3vw, 3px);
+            color: var(--phosphor-glow);
+            text-shadow: 0 0 10px var(--phosphor), 0 0 20px var(--phosphor-dim);
+            border-bottom: 1px solid var(--phosphor-dim);
+            padding-bottom: clamp(4px, 1vw, 8px);
+            margin-bottom: clamp(4px, 1vw, 8px);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .system-info {
+            font-size: var(--font-size-small);
+            line-height: 1.4;
+            opacity: 0.7;
+        }
+        
+        .system-info .hl { color: var(--amber); }
+        
+        .status-bar {
+            margin-top: auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: clamp(8px, 1.5vw, 15px);
+            font-size: var(--font-size-tiny);
+            opacity: 0.6;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .status-dot {
+            width: clamp(4px, 0.6vw, 6px);
+            height: clamp(4px, 0.6vw, 6px);
+            border-radius: 50%;
+            background: var(--phosphor);
+            box-shadow: 0 0 4px var(--phosphor);
+            flex-shrink: 0;
+        }
+        .status-dot.warn { background: var(--amber); box-shadow: 0 0 4px var(--amber); }
+        .status-dot.err { background: var(--red); box-shadow: 0 0 4px var(--red); }
+        
+        /* ===== HOLOGRAM ===== */
+        .hologram-panel {
+            width: clamp(150px, 25vw, 260px);
+            border: 1px solid var(--phosphor-dim);
+            background: rgba(3, 10, 3, 0.95);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        
+        .hologram-title {
+            font-size: var(--font-size-tiny);
+            text-align: center;
+            padding: clamp(2px, 0.5vw, 4px);
+            border-bottom: 1px solid var(--phosphor-dim);
+            letter-spacing: 2px;
+            opacity: 0.6;
+        }
+        
+        .hologram-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #hologramCanvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* ===== TERMINAL ===== */
+        .terminal-body {
+            flex: 1;
+            border: 1px solid var(--phosphor-dim);
+            background: rgba(3, 8, 3, 0.95);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(32, 194, 14, 0.03);
+            min-height: 0;
+        }
+        
+        .terminal-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: clamp(3px, 0.5vw, 5px) clamp(8px, 1vw, 12px);
+            border-bottom: 1px solid var(--phosphor-dim);
+            font-size: var(--font-size-tiny);
+            background: rgba(0, 15, 0, 0.4);
+            flex-shrink: 0;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        
+        .toolbar-left { display: flex; gap: clamp(8px, 1.5vw, 15px); }
+        .toolbar-right { display: flex; gap: clamp(8px, 1.5vw, 15px); align-items: center; }
+        
+        .admin-badge {
+            color: var(--red);
+            text-shadow: 0 0 6px var(--red);
+            animation: pulse 2s ease-in-out infinite;
+            display: none;
+        }
+        .admin-badge.active { display: inline; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        
+        .page-indicator {
+            color: var(--amber);
+            text-shadow: 0 0 5px var(--amber-dim);
+        }
+        
+        .terminal-viewport {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            min-height: 0;
+        }
+        
+        .terminal-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: clamp(8px, 1.2vw, 12px) clamp(10px, 1.5vw, 15px);
+            font-size: var(--font-size-base);
+            line-height: 1.4;
+            overflow: hidden;
+        }
+        
+        .output {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .glow {
+            text-shadow: 0 0 1px var(--phosphor), 0 0 3px var(--phosphor-dim);
+        }
+        
+        /* ===== INPUT ===== */
+        .input-area {
+            border-top: 1px solid var(--phosphor-dim);
+            padding: clamp(6px, 1vw, 10px) clamp(8px, 1vw, 12px);
+            display: flex;
+            align-items: center;
+            background: rgba(0, 12, 0, 0.4);
+            flex-shrink: 0;
+        }
+        
+        .prompt {
+            color: var(--amber);
+            margin-right: clamp(4px, 0.8vw, 8px);
+            text-shadow: 0 0 4px var(--amber-dim);
+            font-size: var(--font-size-base);
+        }
+        
+        #commandInput {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--phosphor);
+            font-family: 'VT323', monospace;
+            font-size: var(--font-size-base);
+            outline: none;
+            text-shadow: 0 0 1px var(--phosphor);
+            caret-color: var(--phosphor);
+            min-width: 0;
+        }
+        
+        .cursor-block {
+            width: clamp(6px, 0.8vw, 10px);
+            height: 1.1em;
+            background: var(--phosphor);
+            animation: cursorBlink 1s step-end infinite;
+            box-shadow: 0 0 4px var(--phosphor);
+            flex-shrink: 0;
+        }
+        
+        @keyframes cursorBlink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        /* ===== TEXT STYLES ===== */
+        .t-amber { color: var(--amber); text-shadow: 0 0 4px var(--amber-dim); }
+        .t-red { color: var(--red); text-shadow: 0 0 4px rgba(255,51,51,0.4); }
+        .t-cyan { color: var(--cyan); text-shadow: 0 0 4px rgba(0,212,170,0.4); }
+        .t-magenta { color: var(--magenta); text-shadow: 0 0 4px rgba(255,0,255,0.4); }
+        .t-dim { opacity: 0.5; }
+        .t-bright { color: var(--phosphor-glow); text-shadow: 0 0 6px var(--phosphor); }
+        
+        /* ===== PAGE TRANSITION ===== */
+        @keyframes pageTransition {
+            0% { opacity: 1; transform: translateY(0); }
+            40% { opacity: 0; transform: translateY(-10px); }
+            60% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        .page-transition {
+            animation: pageTransition 0.3s ease-out;
+        }
+        
+        /* ===== BOOT SCREEN ===== */
+        .boot-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            z-index: 200;
+            padding: clamp(15px, 3vw, 30px);
+            overflow: hidden;
+        }
+        
+        .boot-screen.hidden { display: none; }
+        
+        .boot-output {
+            font-size: var(--font-size-small);
+            line-height: 1.5;
+        }
+        
+        /* ===== NAV HINT ===== */
+        .nav-hint {
+            position: fixed;
+            bottom: clamp(8px, 1.5vw, 15px);
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: var(--font-size-tiny);
+            opacity: 0;
+            z-index: 150;
+            transition: opacity 0.3s;
+        }
+        
+        .nav-hint.visible {
+            opacity: 0.4;
+        }
+        
+        /* ===== HIDDEN FILE INPUT ===== */
+        #fileInput {
+            display: none;
+        }
+        
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 700px) {
+            .hologram-panel { display: none; }
+        }
+        
+        @media (max-width: 500px) {
+            .system-info { display: none; }
+            .top-bar { height: clamp(60px, 12vh, 100px); }
+        }
+        
+        @media (min-width: 1400px) {
+            :root {
+                --font-size-base: 20px;
+                --font-size-title: 28px;
+                --font-size-small: 16px;
+                --font-size-tiny: 14px;
+            }
+        }
+        
+        @media (min-width: 1800px) {
+            :root {
+                --font-size-base: 24px;
+                --font-size-title: 32px;
+                --font-size-small: 18px;
+                --font-size-tiny: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Hidden file input -->
+    <input type="file" id="fileInput" accept=".dat,.db,.bin">
+    
+
+
+    <!-- Boot Screen -->
+    <div class="boot-screen" id="bootScreen">
+        <div class="boot-output glow" id="bootOutput"></div>
+    </div>
+
+    <!-- Main Terminal -->
+    <div class="crt-monitor">
+        <div class="crt-band"></div>
+        <div class="screen-content">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="header-panel">
+                    <div class="system-title glow">BLACK DESERT RESEARCH TERMINAL</div>
+                    <div class="system-info glow">
+                        WEYLAND-YUTANI CORP // <span class="hl">CLASSIFIED INSTALLATION</span><br>
+                        BUILD: <span class="hl">2.1.7-RC4</span> // CLEARANCE: <span class="hl">RESTRICTED</span><br>
+                        TERMINAL: <span class="hl">BD-7734-ALPHA</span>
+                    </div>
+                    <div class="status-bar">
+                        <div class="status-item"><div class="status-dot"></div> NETWORK</div>
+                        <div class="status-item"><div class="status-dot warn"></div> UPLINK</div>
+                        <div class="status-item"><div class="status-dot"></div> DATABASE</div>
+                        <div class="status-item"><div class="status-dot err"></div> EXTERNAL</div>
+                    </div>
+                </div>
+                
+                <div class="hologram-panel">
+                    <div class="hologram-title">◈ FACILITY SCHEMATIC ◈</div>
+                    <div class="hologram-container">
+                        <canvas id="hologramCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Terminal Body -->
+            <div class="terminal-body">
+                <div class="terminal-toolbar">
+                    <div class="toolbar-left">
+                        <span>SESSION: <span class="t-amber">ACTIVE</span></span>
+                        <span>ENTRIES: <span class="t-amber" id="entryCount">0</span></span>
+                    </div>
+                    <div class="toolbar-right">
+                        <span class="admin-badge" id="adminBadge">◆ ADMIN ◆</span>
+                        <span class="page-indicator" id="pageIndicator"></span>
+                    </div>
+                </div>
+                
+                <div class="terminal-viewport" id="terminalViewport">
+                    <div class="terminal-content" id="terminal">
+                        <div class="output glow" id="output"></div>
+                    </div>
+                </div>
+                
+                <div class="input-area">
+                    <span class="prompt glow">></span>
+                    <input type="text" id="commandInput" autocomplete="off" spellcheck="false" autofocus>
+                    <div class="cursor-block"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Hint -->
+    <div class="nav-hint glow" id="navHint">[ ← → ] NAVIGATE PAGES</div>
+
+    <script>
+        // ========================================
+        // AUDIO ENGINE
+        // ========================================
+        const AudioEngine = {
+            ctx: null,
+            enabled: true,
+            initialized: false,
+            
+            init() {
+                if (this.initialized) return;
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.initialized = true;
+                } catch(e) {
+                    this.enabled = false;
+                }
+            },
+            
+            resume() {
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+            
+            keyClick() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const t = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    const filter = this.ctx.createBiquadFilter();
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(80 + Math.random() * 40, t);
+                    osc.frequency.exponentialRampToValueAtTime(30, t + 0.03);
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 400;
+                    gain.gain.setValueAtTime(0.06, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+                    osc.start(t);
+                    osc.stop(t + 0.04);
+                } catch(e) {}
+            },
+            
+            bootBeep() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const t = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(180, t);
+                    osc.frequency.setValueAtTime(220, t + 0.05);
+                    gain.gain.setValueAtTime(0.08, t);
+                    gain.gain.setValueAtTime(0.08, t + 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+                    osc.start(t);
+                    osc.stop(t + 0.15);
+                } catch(e) {}
+            },
+            
+            errorBuzz() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const t = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const osc2 = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    const filter = this.ctx.createBiquadFilter();
+                    osc.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(filter);
+                    filter.connect(this.ctx.destination);
+                    osc.type = 'sawtooth';
+                    osc.frequency.value = 55;
+                    osc2.type = 'square';
+                    osc2.frequency.value = 57;
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 300;
+                    gain.gain.setValueAtTime(0.1, t);
+                    gain.gain.setValueAtTime(0.1, t + 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+                    osc.start(t);
+                    osc2.start(t);
+                    osc.stop(t + 0.25);
+                    osc2.stop(t + 0.25);
+                } catch(e) {}
+            },
+            
+            pageFlip() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const t = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    const filter = this.ctx.createBiquadFilter();
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(120, t);
+                    osc.frequency.linearRampToValueAtTime(80, t + 0.1);
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 600;
+                    gain.gain.setValueAtTime(0.06, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+                    osc.start(t);
+                    osc.stop(t + 0.12);
+                } catch(e) {}
+            },
+            
+            successTone() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const t = this.ctx.currentTime;
+                    [150, 200].forEach((freq, i) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.type = 'sine';
+                        osc.frequency.value = freq;
+                        const start = t + i * 0.12;
+                        gain.gain.setValueAtTime(0.07, start);
+                        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.1);
+                        osc.start(start);
+                        osc.stop(start + 0.1);
+                    });
+                } catch(e) {}
+            },
+            
+            startupSequence() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const t = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    const filter = this.ctx.createBiquadFilter();
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(30, t);
+                    osc.frequency.exponentialRampToValueAtTime(60, t + 0.5);
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(100, t);
+                    filter.frequency.exponentialRampToValueAtTime(400, t + 0.5);
+                    gain.gain.setValueAtTime(0.001, t);
+                    gain.gain.exponentialRampToValueAtTime(0.08, t + 0.2);
+                    gain.gain.setValueAtTime(0.08, t + 0.4);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+                    osc.start(t);
+                    osc.stop(t + 0.6);
+                    
+                    setTimeout(() => {
+                        [100, 150, 100, 200].forEach((freq, i) => {
+                            setTimeout(() => {
+                                const o = this.ctx.createOscillator();
+                                const g = this.ctx.createGain();
+                                o.connect(g);
+                                g.connect(this.ctx.destination);
+                                o.type = 'sine';
+                                o.frequency.value = freq;
+                                g.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                                g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.06);
+                                o.start();
+                                o.stop(this.ctx.currentTime + 0.06);
+                            }, i * 80);
+                        });
+                    }, 500);
+                } catch(e) {}
+            },
+            
+            accessGranted() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const t = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const osc2 = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.value = 80;
+                    osc2.type = 'sine';
+                    osc2.frequency.value = 120;
+                    gain.gain.setValueAtTime(0.001, t);
+                    gain.gain.exponentialRampToValueAtTime(0.1, t + 0.1);
+                    gain.gain.setValueAtTime(0.1, t + 0.3);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+                    osc.start(t);
+                    osc2.start(t);
+                    osc.stop(t + 0.5);
+                    osc2.stop(t + 0.5);
+                } catch(e) {}
+            },
+            
+            dataLoaded() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const t = this.ctx.currentTime;
+                    for (let i = 0; i < 6; i++) {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        const filter = this.ctx.createBiquadFilter();
+                        osc.connect(filter);
+                        filter.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.type = 'square';
+                        osc.frequency.value = 100 + i * 30;
+                        filter.type = 'lowpass';
+                        filter.frequency.value = 500;
+                        const start = t + i * 0.04;
+                        gain.gain.setValueAtTime(0.04, start);
+                        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.03);
+                        osc.start(start);
+                        osc.stop(start + 0.03);
+                    }
+                    setTimeout(() => this.successTone(), 250);
+                } catch(e) {}
+            },
+            
+            decryptSound() {
+                if (!this.enabled || !this.ctx) return;
+                try {
+                    const t = this.ctx.currentTime;
+                    // Scramble sound
+                    for (let i = 0; i < 10; i++) {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.type = 'square';
+                        osc.frequency.value = 50 + Math.random() * 200;
+                        const start = t + i * 0.05;
+                        gain.gain.setValueAtTime(0.03, start);
+                        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.04);
+                        osc.start(start);
+                        osc.stop(start + 0.04);
+                    }
+                } catch(e) {}
+            }
+        };
+        
+        // ========================================
+        // STATE
+        // ========================================
+        let database = {};
+        let bootSequence = [];
+        let commandHistory = [];
+        let historyIndex = -1;
+        let adminMode = false;
+        let databaseLoaded = false;
+        const ADMIN_PASSWORD = atob("YXBvY2FseXBzZQ==");
+        
+        let outputBuffer = [];
+        let currentPage = 0;
+        let linesPerPage = 20;
+        let totalPages = 1;
+        
+
+        // ========================================
+        // INITIALIZATION
+        // ========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            AudioEngine.init();
+            calculateLinesPerPage();
+            loadBootSequence();
+            startBootSequence();
+            
+            document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+            
+            window.addEventListener('resize', () => {
+                calculateLinesPerPage();
+                recalculatePages();
+            });
+            
+            document.addEventListener('wheel', e => e.preventDefault(), { passive: false });
+            document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+            
+            document.addEventListener('click', () => AudioEngine.resume(), { once: true });
+            document.addEventListener('keydown', () => AudioEngine.resume(), { once: true });
+        });
+        
+        function calculateLinesPerPage() {
+            const viewport = document.getElementById('terminalViewport');
+            if (viewport) {
+                const content = document.querySelector('.terminal-content');
+                const fontSize = parseFloat(getComputedStyle(content).fontSize);
+                const lineHeight = fontSize * 1.4;
+                linesPerPage = Math.floor(viewport.clientHeight / lineHeight) - 1;
+                linesPerPage = Math.max(5, linesPerPage);
+            }
+        }
+        
+        function loadBootSequence() {
+            bootSequence = [
+                'BIOS INIT ......................... OK',
+                'MEMORY 640K BASE .................. OK',
+                'EXT MEMORY 262144K ................ OK',
+                '|',
+                'KERNEL LOAD ....................... OK',
+                'DEVICE DRIVERS .................... OK',
+                'FILESYSTEM MOUNT .................. OK',
+                '|',
+                'NET INTERFACE eth0 ................ ONLINE',
+                'NET INTERFACE eth1 ................ OFFLINE [NO CARRIER]',
+                'SATELLITE UPLINK .................. DEGRADED [SIGNAL 47%]',
+                'EXTERNAL RELAY .................... FAILED [CONN REFUSED]',
+                '|',
+                'DATABASE MODULE ................... OK',
+                'INDEX PARSE ....................... OK',
+                'INTEGRITY CHECK ................... OK',
+                '|',
+                'SECURITY PROTOCOL ................. ENGAGED',
+                'CLEARANCE LEVEL ................... RESTRICTED',
+                'CONFIDENTIAL FILES ................ LOCKED',
+                '|',
+                '*******************************************',
+                '*   BLACK DESERT RESEARCH TERMINAL v2.1.7 *',
+                '*   AUTHORIZED PERSONNEL ONLY             *',
+                '*   ALL ACTIVITY MONITORED AND LOGGED     *',
+                '*******************************************',
+                '|',
+                'Type HELP for available commands.',
+                'Use LOAD to import encrypted database.'
+            ];
+        }
+        
+        function updateEntryCount() {
+            const count = Object.values(database).filter(e => e.category !== 'CONFIDENTIAL').length;
+            document.getElementById('entryCount').textContent = count;
+        }
+        
+        // ========================================
+        // BOOT SEQUENCE
+        // ========================================
+        function startBootSequence() {
+            const bootOutput = document.getElementById('bootOutput');
+            const bootScreen = document.getElementById('bootScreen');
+            
+            AudioEngine.startupSequence();
+            let lineIndex = 0;
+            
+            function printBootLine() {
+                if (lineIndex >= bootSequence.length) {
+                    setTimeout(() => {
+                        AudioEngine.successTone();
+                        bootScreen.classList.add('hidden');
+                        initTerminal();
+                    }, 500);
+                    return;
+                }
+                
+                const line = bootSequence[lineIndex];
+                
+                if (line === '|') {
+                    lineIndex++;
+                    setTimeout(printBootLine, 200);
+                    return;
+                }
+                
+                typewriterBoot(line, bootOutput, () => {
+                    lineIndex++;
+                    let delay = 25;
+                    if (line.includes('FAILED') || line.includes('DEGRADED')) {
+                        AudioEngine.errorBuzz();
+                        delay = 250;
+                    } else if (line.includes('OK') || line.includes('ONLINE')) {
+                        AudioEngine.bootBeep();
+                    }
+                    setTimeout(printBootLine, delay);
+                });
+            }
+            
+            setTimeout(printBootLine, 700);
+        }
+        
+        function typewriterBoot(text, container, callback) {
+            const div = document.createElement('div');
+            div.className = 'glow';
+            container.appendChild(div);
+            
+            let i = 0;
+            
+            function typeChar() {
+                if (i < text.length) {
+                    div.textContent += text[i];
+                    i++;
+                    if (i % 4 === 0) AudioEngine.keyClick();
+                    setTimeout(typeChar, 6 + Math.random() * 8);
+                } else {
+                    div.innerHTML = text
+                        .replace(/(OK|ONLINE|ACTIVE|ENGAGED)/g, '<span class="t-cyan">$1</span>')
+                        .replace(/(FAILED|ERROR|OFFLINE)/g, '<span class="t-red">$1</span>')
+                        .replace(/(DEGRADED|WARNING|LOCKED)/g, '<span class="t-amber">$1</span>')
+                        .replace(/(\[.*?\])/g, '<span class="t-dim">$1</span>')
+                        .replace(/(\*+)/g, '<span class="t-amber">$1</span>');
+                    callback();
+                }
+            }
+            
+            typeChar();
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // ========================================
+        // TERMINAL
+        // ========================================
+        function initTerminal() {
+            initHologram();
+            showHelp();
+            
+            const input = document.getElementById('commandInput');
+            input.addEventListener('keydown', handleInput);
+            
+            function maintainFocus() {
+                input.focus();
+            }
+            
+            maintainFocus();
+            document.addEventListener('click', maintainFocus);
+            document.addEventListener('keydown', (e) => {
+                
+                if (e.key === 'ArrowLeft' && totalPages > 1) {
+                    if (input.selectionStart === 0 || input.value === '') {
+                        e.preventDefault();
+                        prevPage();
+                        return;
+                    }
+                }
+                if (e.key === 'ArrowRight' && totalPages > 1) {
+                    if (input.selectionStart === input.value.length || input.value === '') {
+                        e.preventDefault();
+                        nextPage();
+                        return;
+                    }
+                }
+                maintainFocus();
+            });
+            
+            setInterval(maintainFocus, 500);
+        }
+        
+        function prevPage() {
+            if (currentPage > 0) {
+                currentPage--;
+                AudioEngine.pageFlip();
+                animatePageTransition();
+            }
+        }
+        
+        function nextPage() {
+            if (currentPage < totalPages - 1) {
+                currentPage++;
+                AudioEngine.pageFlip();
+                animatePageTransition();
+            }
+        }
+        
+        function animatePageTransition() {
+            const content = document.getElementById('terminal');
+            content.classList.add('page-transition');
+            setTimeout(() => {
+                renderCurrentPage();
+                content.classList.remove('page-transition');
+            }, 150);
+        }
+        
+        function handleInput(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const input = document.getElementById('commandInput');
+                const value = input.value.trim();
+                if (value) {
+                    commandHistory.push(value);
+                    historyIndex = commandHistory.length;
+                    addToBuffer(`> ${value}`, 't-amber');
+                    processCommand(value);
+                    input.value = '';
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    document.getElementById('commandInput').value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    document.getElementById('commandInput').value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = commandHistory.length;
+                    document.getElementById('commandInput').value = '';
+                }
+            }
+        }
+        
+        // ========================================
+        // OUTPUT & PAGINATION
+        // ========================================
+        function addToBuffer(text, className = '') {
+            const lines = text.split('\n');
+            lines.forEach(line => {
+                outputBuffer.push({ text: line, className });
+            });
+            recalculatePages();
+        }
+        
+        function recalculatePages() {
+            totalPages = Math.max(1, Math.ceil(outputBuffer.length / linesPerPage));
+            if (currentPage >= totalPages) {
+                currentPage = totalPages - 1;
+            }
+            currentPage = totalPages - 1;
+            updatePageIndicator();
+            renderCurrentPage();
+        }
+        
+        function clearBuffer() {
+            outputBuffer = [];
+            currentPage = 0;
+            totalPages = 1;
+            updatePageIndicator();
+            document.getElementById('output').innerHTML = '';
+        }
+        
+        function updatePageIndicator() {
+            const indicator = document.getElementById('pageIndicator');
+            const hint = document.getElementById('navHint');
+            
+            if (totalPages > 1) {
+                indicator.textContent = `PAGE ${currentPage + 1}/${totalPages}`;
+                hint.classList.add('visible');
+            } else {
+                indicator.textContent = '';
+                hint.classList.remove('visible');
+            }
+        }
+        
+        function renderCurrentPage() {
+            const output = document.getElementById('output');
+            output.innerHTML = '';
+            
+            const start = currentPage * linesPerPage;
+            const end = Math.min(start + linesPerPage, outputBuffer.length);
+            const pageLines = outputBuffer.slice(start, end);
+            
+            pageLines.forEach(line => {
+                const div = document.createElement('div');
+                div.textContent = line.text;
+                div.className = 'glow ' + line.className;
+                output.appendChild(div);
+            });
+            
+            updatePageIndicator();
+        }
+        
+        function print(text, className = '') {
+            addToBuffer(text, className);
+        }
+        
+        // ========================================
+        // ENCRYPTION
+        // ========================================
+        const ENCRYPTION_KEY = 'Shelby';
+        
+        function xorCrypt(text) {
+            let result = '';
+            for (let i = 0; i < text.length; i++) {
+                result += String.fromCharCode(text.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length));
+            }
+            return result;
+        }
+        
+        // ========================================
+        // FILE HANDLING
+        // ========================================
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const fileName = file.name.toLowerCase();
+            
+            if (fileName.endsWith('.dat') || fileName.endsWith('.db') || fileName.endsWith('.bin')) {
+                loadEncryptedFile(file);
+            } else {
+                AudioEngine.errorBuzz();
+                print('');
+                print('ERROR: Unsupported file format.', 't-red');
+                print('Expected: encrypted database (.dat)', 't-dim');
+                print('');
+            }
+            
+            e.target.value = '';
+        }
+        
+        function loadEncryptedFile(file) {
+            print('');
+            print('ENCRYPTED DATABASE DETECTED', 't-amber');
+            print('Decrypting...', 't-dim');
+            
+            AudioEngine.decryptSound();
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const encoded = event.target.result.trim();
+                    const decoded = atob(encoded);
+                    const decrypted = xorCrypt(decoded);
+                    
+                    if (decrypted.includes(':') && decrypted.includes('|')) {
+                        parseDataFile(decrypted);
+                        databaseLoaded = true;
+                        AudioEngine.dataLoaded();
+                        print('');
+                        print('DECRYPTION SUCCESSFUL', 't-cyan');
+                        print(`DATABASE LOADED: ${file.name}`, 't-amber');
+                        print(`Entries indexed: ${Object.keys(database).length}`, 't-cyan');
+                        print('');
+                    } else {
+                        throw new Error('Invalid format');
+                    }
+                } catch (error) {
+                    AudioEngine.errorBuzz();
+                    print('');
+                    print('ERROR: DECRYPTION FAILED', 't-red');
+                    print('Database file may be corrupted.', 't-dim');
+                    print('');
+                }
+            };
+            reader.onerror = function() {
+                AudioEngine.errorBuzz();
+                print('');
+                print('ERROR: Could not read file.', 't-red');
+                print('');
+            };
+            reader.readAsText(file);
+        }        
+        function triggerFileDialog() {
+            document.getElementById('fileInput').click();
+        }
+        
+        // ========================================
+        // COMMANDS
+        // ========================================
+        function processCommand(input) {
+            const cmd = input.toLowerCase().trim();
+            const parts = input.trim().split(/\s+/);
+            const command = parts[0].toLowerCase();
+            const args = parts.slice(1).join(' ');
+            
+            AudioEngine.resume();
+            
+            if (cmd === ADMIN_PASSWORD) {
+                if (!adminMode) {
+                    adminMode = true;
+                    document.getElementById('adminBadge').classList.add('active');
+                    AudioEngine.accessGranted();
+                    print('');
+                    print('▓▓▓ ADMINISTRATOR ACCESS GRANTED ▓▓▓', 't-red');
+                    print('');
+                    print('Additional commands unlocked:', 't-amber');
+                    print('  LIST [category]  - Display all entries');
+                    print('  FSEARCH [term]   - Fuzzy search (partial match)');
+                    print('  LOGOUT           - Terminate admin session');
+                    print('');
+                    print('CONFIDENTIAL entries now accessible.', 't-magenta');
+                    print('');
+                } else {
+                    print('Already in administrator mode.', 't-dim');
+                    print('');
+                }
+                return;
+            }
+            
+            // Secret command
+            if (cmd === 'kontol') {
+                startMiniGame();
+                return;
+            }
+            
+            if (command === 'help') {
+                showHelp();
+            } else if (command === 'clear' || command === 'cls') {
+                clearBuffer();
+            } else if (command === 'load') {
+                print('');
+                print('Opening file selector...', 't-dim');
+                print('Select encrypted database (.dat)', 't-dim');
+                triggerFileDialog();
+            } else if (command === 'categories' || command === 'cat') {
+                if (!databaseLoaded) {
+                    AudioEngine.errorBuzz();
+                    print('ERROR: No database loaded. Use LOAD command.', 't-red');
+                    print('');
+                } else {
+                    showCategories();
+                }
+            } else if (command === 'logout' && adminMode) {
+                adminMode = false;
+                document.getElementById('adminBadge').classList.remove('active');
+                AudioEngine.errorBuzz();
+                print('Administrator session terminated.', 't-red');
+                print('');
+            } else if (command === 'list' && adminMode) {
+                if (!databaseLoaded) {
+                    AudioEngine.errorBuzz();
+                    print('ERROR: No database loaded. Use LOAD command.', 't-red');
+                    print('');
+                } else if (args) {
+                    listByCategory(args);
+                } else {
+                    listAllEntries();
+                }
+            } else if (command === 'fsearch' && adminMode) {
+                if (!databaseLoaded) {
+                    AudioEngine.errorBuzz();
+                    print('ERROR: No database loaded. Use LOAD command.', 't-red');
+                    print('');
+                } else {
+                    fuzzySearch(args);
+                }
+            } else if (command === 'search') {
+                if (!databaseLoaded) {
+                    AudioEngine.errorBuzz();
+                    print('ERROR: No database loaded. Use LOAD command.', 't-red');
+                    print('');
+                } else {
+                    searchDatabase(args);
+                }
+            } else if (command === 'list' || command === 'fsearch') {
+                AudioEngine.errorBuzz();
+                print('ACCESS DENIED: Administrator privileges required.', 't-red');
+                print('');
+            } else if (cmd) {
+                if (!databaseLoaded) {
+                    AudioEngine.errorBuzz();
+                    print(`ERROR: Unknown command "${command}"`, 't-red');
+                    print('Type HELP for available commands.', 't-dim');
+                    print('');
+                } else {
+                    searchDatabase(cmd);
+                }
+            }
+        }
+        
+        function parseDataFile(content) {
+            database = {};
+            content = content.replace(/###BOOT###[\s\S]*?###BOOT###/g, '');
+            
+            const entries = content.split('\n\n');
+            entries.forEach(entry => {
+                entry = entry.trim();
+                if (!entry) return;
+                
+                const colonIdx = entry.indexOf(':');
+                if (colonIdx > -1) {
+                    const category = entry.substring(0, colonIdx).trim();
+                    const rest = entry.substring(colonIdx + 1);
+                    const pipeIdx = rest.indexOf('|');
+                    if (pipeIdx > -1) {
+                        const title = rest.substring(0, pipeIdx).trim();
+                        const entryContent = rest.substring(pipeIdx + 1).trim();
+                        database[title.toLowerCase()] = { category, title, content: entryContent };
+                    }
+                }
+            });
+            
+            updateEntryCount();
+        }
+        
+        function showHelp() {
+            clearBuffer();
+            print('═══════════════════════════════════════════════════', 't-dim');
+            print('                 COMMAND REFERENCE', 't-bright');
+            print('═══════════════════════════════════════════════════', 't-dim');
+            print('');
+            print('  LOAD              Import encrypted database', 't-cyan');
+            print('                    (Select .dat file)');
+            print('');
+            print('  SEARCH <title>    Query database by exact title', 't-cyan');
+            print('  CATEGORIES        Display available categories', 't-cyan');
+            print('  HELP              Show this reference', 't-cyan');
+            print('  CLEAR             Clear terminal display', 't-cyan');
+            print('');
+            print('───────────────────────────────────────────────────', 't-dim');
+            print('NOTES:');
+            print('  • Load an encrypted database archive first');
+            print('  • Use ← → arrow keys to navigate pages');
+            print('───────────────────────────────────────────────────', 't-dim');
+            print('Administrator password required for full access.', 't-amber');
+            print('═══════════════════════════════════════════════════', 't-dim');
+            
+            if (adminMode) {
+                print('');
+                print('ADMIN COMMANDS:', 't-red');
+                print('  LIST [category]   Display all entries', 't-red');
+                print('  FSEARCH <term>    Fuzzy search (partial match)', 't-red');
+                print('  LOGOUT            Exit admin mode', 't-red');
+            }
+        }
+        
+        function showCategories() {
+            const categories = {};
+            for (let key in database) {
+                const entry = database[key];
+                if (entry.category === 'CONFIDENTIAL' && !adminMode) continue;
+                if (!categories[entry.category]) categories[entry.category] = 0;
+                categories[entry.category]++;
+            }
+            
+            print('');
+            print('DATABASE CATEGORIES:', 't-bright');
+            print('───────────────────────────────────', 't-dim');
+            for (let cat in categories) {
+                const cls = cat === 'CONFIDENTIAL' ? 't-magenta' : 't-cyan';
+                print(`  ${cat} (${categories[cat]} entries)`, cls);
+            }
+            print('');
+        }
+        
+        function searchDatabase(term) {
+            if (!term) {
+                print('Usage: SEARCH <title>', 't-amber');
+                print('');
+                return;
+            }
+            
+            const searchTerm = term.toLowerCase();
+            for (let key in database) {
+                const entry = database[key];
+                if (entry.category === 'CONFIDENTIAL' && !adminMode) continue;
+                if (key === searchTerm) {
+                    AudioEngine.successTone();
+                    print('');
+                    print('ENTRY LOCATED:', 't-bright');
+                    print('───────────────────────────────────', 't-dim');
+                    printEntry(entry);
+                    return;
+                }
+            }
+            AudioEngine.errorBuzz();
+            print('');
+            print(`ERROR: No entry found matching "${term}"`, 't-red');
+            print('Search requires exact entry title.', 't-dim');
+            print('');
+        }
+        
+        function fuzzySearch(term) {
+            if (!term) {
+                print('Usage: FSEARCH <term>', 't-amber');
+                print('');
+                return;
+            }
+            
+            const matches = [];
+            const searchTerm = term.toLowerCase();
+            for (let key in database) {
+                const entry = database[key];
+                if (key.includes(searchTerm) || 
+                    entry.title.toLowerCase().includes(searchTerm) ||
+                    entry.content.toLowerCase().includes(searchTerm)) {
+                    matches.push(entry);
+                }
+            }
+            if (matches.length === 0) {
+                AudioEngine.errorBuzz();
+                print(`No entries found matching "${term}"`, 't-red');
+                print('');
+            } else {
+                AudioEngine.successTone();
+                print('');
+                print(`${matches.length} MATCH${matches.length === 1 ? '' : 'ES'} FOUND:`, 't-amber');
+                print('───────────────────────────────────', 't-dim');
+                matches.forEach(entry => printEntry(entry));
+            }
+        }
+        
+        function listAllEntries() {
+            const categories = {};
+            for (let key in database) {
+                const entry = database[key];
+                if (!categories[entry.category]) categories[entry.category] = [];
+                categories[entry.category].push(entry.title);
+            }
+            print('');
+            print('COMPLETE DATABASE INDEX:', 't-amber');
+            print('═══════════════════════════════════', 't-dim');
+            for (let cat in categories) {
+                const cls = cat === 'CONFIDENTIAL' ? 't-magenta' : 't-cyan';
+                print(`[${cat}]`, cls);
+                categories[cat].forEach(title => print(`  • ${title}`, cls === 't-magenta' ? 't-magenta' : ''));
+                print('');
+            }
+        }
+        
+        function listByCategory(category) {
+            const cat = category.toUpperCase();
+            const entries = Object.values(database).filter(e => e.category.toUpperCase() === cat);
+            if (entries.length === 0) {
+                AudioEngine.errorBuzz();
+                print(`No entries found in category "${category}"`, 't-red');
+                print('');
+                return;
+            }
+            const cls = cat === 'CONFIDENTIAL' ? 't-magenta' : 't-cyan';
+            print('');
+            print(`[${cat}] - ${entries.length} ENTRIES:`, cls);
+            print('───────────────────────────────────', 't-dim');
+            entries.forEach(e => print(`  • ${e.title}`, cls === 't-magenta' ? 't-magenta' : ''));
+            print('');
+        }
+        
+        function printEntry(entry) {
+            const cls = entry.category === 'CONFIDENTIAL' ? 't-magenta' : '';
+            print(`[${entry.category}] ${entry.title}`, entry.category === 'CONFIDENTIAL' ? 't-magenta' : 't-cyan');
+            print(entry.content, cls);
+            print('');
+        }
+        
+        // ========================================
+        // HOLOGRAM
+        // ========================================
+        function initHologram() {
+            const canvas = document.getElementById('hologramCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            let width = 0, height = 0;
+            
+            function resize() {
+                const rect = canvas.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    canvas.width = rect.width * 2;
+                    canvas.height = rect.height * 2;
+                    ctx.setTransform(2, 0, 0, 2, 0, 0);
+                    width = rect.width;
+                    height = rect.height;
+                }
+            }
+            resize();
+            window.addEventListener('resize', resize);
+            
+            const facility = {
+                rooms: [
+                    { x: -30, y: 0, z: -20, w: 60, h: 18, d: 40 },
+                    { x: -45, y: 0, z: -12, w: 15, h: 12, d: 24 },
+                    { x: 30, y: 0, z: -12, w: 15, h: 12, d: 24 },
+                    { x: -10, y: 18, z: -10, w: 20, h: 20, d: 20 },
+                    { x: -38, y: -10, z: -25, w: 76, h: 10, d: 50 }
+                ],
+                doors: [
+                    { x: -3, y: 0, z: 20, w: 6, h: 10 },
+                    { x: -30, y: 0, z: 0, w: 5, h: 8 },
+                    { x: 30, y: 0, z: 0, w: 5, h: 8 }
+                ]
+            };
+            
+            let angle = 0;
+            
+            function project(x, y, z, rot) {
+                const cos = Math.cos(rot), sin = Math.sin(rot);
+                const rx = x * cos - z * sin, rz = x * sin + z * cos;
+                return { x: (rx - rz) * 1.0, y: (rx + rz) * 0.35 - y * 1.0 };
+            }
+            
+            function drawBox(box, rot, color, alpha) {
+                const { x, y, z, w, h, d } = box;
+                const v = [[x,y,z],[x+w,y,z],[x+w,y,z+d],[x,y,z+d],[x,y+h,z],[x+w,y+h,z],[x+w,y+h,z+d],[x,y+h,z+d]];
+                const p = v.map(pt => project(pt[0], pt[1], pt[2], rot));
+                const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+                ctx.strokeStyle = color;
+                ctx.globalAlpha = alpha;
+                ctx.lineWidth = 0.6;
+                edges.forEach(([a,b]) => { ctx.beginPath(); ctx.moveTo(p[a].x, p[a].y); ctx.lineTo(p[b].x, p[b].y); ctx.stroke(); });
+                ctx.globalAlpha = 1;
+            }
+            
+            function drawDoor(door, rot) {
+                const { x, y, z, w, h } = door;
+                const v = [[x,y,z],[x+w,y,z],[x+w,y+h,z],[x,y+h,z]];
+                const p = v.map(pt => project(pt[0], pt[1], pt[2], rot));
+                ctx.strokeStyle = '#ff3333';
+                ctx.lineWidth = 1.2;
+                ctx.shadowColor = '#ff3333';
+                ctx.shadowBlur = 3;
+                ctx.beginPath();
+                p.forEach((pt, i) => i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y));
+                ctx.closePath();
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+            
+            function render() {
+                if (width <= 0 || height <= 0) { requestAnimationFrame(render); return; }
+                
+                ctx.fillStyle = 'rgba(3, 10, 3, 0.12)';
+                ctx.fillRect(0, 0, width, height);
+                ctx.save();
+                ctx.translate(width / 2, height / 2 + 15);
+                
+                ctx.strokeStyle = '#20c20e';
+                ctx.globalAlpha = 0.1;
+                ctx.lineWidth = 0.3;
+                for (let i = -4; i <= 4; i++) {
+                    let p1 = project(i * 10, -10, -40, angle), p2 = project(i * 10, -10, 40, angle);
+                    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                    let p3 = project(-40, -10, i * 10, angle), p4 = project(40, -10, i * 10, angle);
+                    ctx.beginPath(); ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                
+                ctx.shadowColor = '#20c20e';
+                ctx.shadowBlur = 2;
+                facility.rooms.forEach((room, i) => drawBox(room, angle, '#20c20e', i === 4 ? 0.2 : 0.5));
+                facility.doors.forEach(door => drawDoor(door, angle));
+                ctx.restore();
+                
+                if (height > 0) {
+                    const scanY = (Date.now() / 25) % height;
+                    if (isFinite(scanY) && scanY >= 0) {
+                        const grad = ctx.createLinearGradient(0, Math.max(0, scanY - 12), 0, scanY + 12);
+                        grad.addColorStop(0, 'rgba(32,194,14,0)');
+                        grad.addColorStop(0.5, 'rgba(32,194,14,0.15)');
+                        grad.addColorStop(1, 'rgba(32,194,14,0)');
+                        ctx.fillStyle = grad;
+                        ctx.fillRect(0, scanY - 12, width, 24);
+                    }
+                }
+                
+                angle += 0.003;
+                requestAnimationFrame(render);
+            }
+            
+            setTimeout(render, 100);
+        }
+        
+        // ========================================
+        // SECRET MINI-GAME
+        // ========================================
+        let gameHighScores = JSON.parse(localStorage.getItem('rocketGameScores') || '[]');
+        
+        function startMiniGame() {
+            // Create game overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'gameOverlay';
+            overlay.innerHTML = `
+                <style>
+                    #gameOverlay {
+                        position: fixed;
+                        top: 0; left: 0; right: 0; bottom: 0;
+                        background: #000;
+                        z-index: 500;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        font-family: 'VT323', monospace;
+                    }
+                    #gameCanvas {
+                        border: 2px solid #20c20e;
+                        box-shadow: 0 0 30px rgba(32, 194, 14, 0.5);
+                    }
+                    #gameUI {
+                        color: #20c20e;
+                        font-size: 20px;
+                        margin-bottom: 10px;
+                        width: 800px;
+                        display: flex;
+                        justify-content: space-between;
+                    }
+                    #gameTitle {
+                        color: #ffb000;
+                        font-size: 28px;
+                        margin-bottom: 20px;
+                        text-shadow: 0 0 10px rgba(255, 176, 0, 0.5);
+                    }
+                    #gameInstructions {
+                        color: #888;
+                        font-size: 16px;
+                        margin-top: 15px;
+                    }
+                    #leaderboard {
+                        position: absolute;
+                        right: 30px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        background: rgba(0, 20, 0, 0.8);
+                        border: 1px solid #20c20e;
+                        padding: 20px;
+                        color: #20c20e;
+                        min-width: 200px;
+                    }
+                    #leaderboard h3 {
+                        color: #ffb000;
+                        margin-bottom: 15px;
+                        text-align: center;
+                    }
+                    #leaderboard ol {
+                        padding-left: 25px;
+                    }
+                    #leaderboard li {
+                        margin: 8px 0;
+                    }
+                    .score-name { color: #00d4aa; }
+                    .score-value { color: #ffb000; float: right; }
+                    #gameOver {
+                        display: none;
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: rgba(0, 0, 0, 0.95);
+                        border: 2px solid #ffb000;
+                        padding: 40px;
+                        text-align: center;
+                        z-index: 10;
+                    }
+                    #gameOver h2 { color: #ffb000; font-size: 32px; margin-bottom: 20px; }
+                    #gameOver .final-score { color: #20c20e; font-size: 48px; margin: 20px 0; }
+                    #gameOver input {
+                        background: #0a0a15;
+                        border: 1px solid #20c20e;
+                        color: #20c20e;
+                        font-family: 'VT323', monospace;
+                        font-size: 20px;
+                        padding: 10px 20px;
+                        margin: 10px;
+                        text-align: center;
+                        width: 200px;
+                    }
+                    #gameOver button {
+                        background: #20c20e;
+                        border: none;
+                        color: #000;
+                        font-family: 'VT323', monospace;
+                        font-size: 18px;
+                        padding: 12px 30px;
+                        margin: 10px;
+                        cursor: pointer;
+                    }
+                    #gameOver button:hover { background: #39ff14; }
+                    #gameOver button.secondary {
+                        background: transparent;
+                        border: 1px solid #888;
+                        color: #888;
+                    }
+                </style>
+                <div id="gameTitle">◈ ROCKET COMMAND ◈</div>
+                <div id="gameUI">
+                    <span>SCORE: <span id="scoreDisplay">0</span></span>
+                    <span>TIME: <span id="timeDisplay">60</span>s</span>
+                </div>
+                <canvas id="gameCanvas" width="800" height="500"></canvas>
+                <div id="gameInstructions">↑/↓ or W/S to move | SPACE to fire | ESC to exit</div>
+                <div id="leaderboard">
+                    <h3>◆ HIGH SCORES ◆</h3>
+                    <ol id="scoreList"></ol>
+                </div>
+                <div id="gameOver">
+                    <h2>MISSION COMPLETE</h2>
+                    <div class="final-score" id="finalScore">0</div>
+                    <p style="color: #888;">Enter your callsign:</p>
+                    <input type="text" id="playerName" maxlength="10" placeholder="PILOT">
+                    <br>
+                    <button onclick="submitScore()">SUBMIT SCORE</button>
+                    <button class="secondary" onclick="closeGame()">EXIT</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            
+            updateLeaderboard();
+            
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width;
+            const H = canvas.height;
+            
+            // Game state
+            let score = 0;
+            let timeLeft = 60;
+            let gameRunning = true;
+            let gameOver = false;
+            
+            // Ship
+            const ship = {
+                x: 80,
+                y: H / 2,
+                width: 50,
+                height: 25,
+                speed: 6
+            };
+            
+            // Projectiles
+            let projectiles = [];
+            
+            // Target (donut)
+            const target = {
+                x: W - 100,
+                y: H / 2,
+                radius: 35,
+                innerRadius: 15,
+                speedY: 3,
+                direction: 1
+            };
+            
+            // Stars background
+            const stars = [];
+            for (let i = 0; i < 100; i++) {
+                stars.push({
+                    x: Math.random() * W,
+                    y: Math.random() * H,
+                    speed: 1 + Math.random() * 3,
+                    size: Math.random() * 2
+                });
+            }
+            
+            // Input
+            const keys = {};
+            
+            function handleKeyDown(e) {
+                keys[e.key] = true;
+                if (e.key === ' ' && gameRunning && !gameOver) {
+                    e.preventDefault();
+                    fireProjectile();
+                }
+                if (e.key === 'Escape') {
+                    closeGame();
+                }
+            }
+            
+            function handleKeyUp(e) {
+                keys[e.key] = false;
+            }
+            
+            document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keyup', handleKeyUp);
+            
+            // Fire projectile
+            let lastFire = 0;
+            function fireProjectile() {
+                const now = Date.now();
+                if (now - lastFire < 200) return; // Fire rate limit
+                lastFire = now;
+                
+                projectiles.push({
+                    x: ship.x + ship.width,
+                    y: ship.y,
+                    speed: 12,
+                    wave: 0,
+                    startY: ship.y
+                });
+                
+                // Sound
+                if (AudioEngine.ctx) {
+                    const osc = AudioEngine.ctx.createOscillator();
+                    const gain = AudioEngine.ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(AudioEngine.ctx.destination);
+                    osc.frequency.setValueAtTime(200, AudioEngine.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(100, AudioEngine.ctx.currentTime + 0.1);
+                    osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.1, AudioEngine.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, AudioEngine.ctx.currentTime + 0.1);
+                    osc.start();
+                    osc.stop(AudioEngine.ctx.currentTime + 0.1);
+                }
+            }
+            
+            // Hit sound
+            function playHitSound() {
+                if (AudioEngine.ctx) {
+                    [400, 600, 800].forEach((freq, i) => {
+                        setTimeout(() => {
+                            const osc = AudioEngine.ctx.createOscillator();
+                            const gain = AudioEngine.ctx.createGain();
+                            osc.connect(gain);
+                            gain.connect(AudioEngine.ctx.destination);
+                            osc.frequency.value = freq;
+                            osc.type = 'sine';
+                            gain.gain.setValueAtTime(0.08, AudioEngine.ctx.currentTime);
+                            gain.gain.exponentialRampToValueAtTime(0.001, AudioEngine.ctx.currentTime + 0.1);
+                            osc.start();
+                            osc.stop(AudioEngine.ctx.currentTime + 0.1);
+                        }, i * 50);
+                    });
+                }
+            }
+            
+            // Draw ship (rocket shape)
+            function drawShip() {
+                ctx.save();
+                ctx.translate(ship.x, ship.y);
+                
+                // Main body (elongated)
+                ctx.fillStyle = '#ff6b9d';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, ship.width / 2, ship.height / 2.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Tip
+                ctx.fillStyle = '#ff8fad';
+                ctx.beginPath();
+                ctx.arc(ship.width / 2 - 5, 0, ship.height / 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Base details
+                ctx.fillStyle = '#cc5580';
+                ctx.beginPath();
+                ctx.ellipse(-ship.width / 3, ship.height / 4, 8, 6, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.ellipse(-ship.width / 3, -ship.height / 4, 8, 6, -0.3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Thrust
+                ctx.fillStyle = '#ffb000';
+                ctx.beginPath();
+                ctx.moveTo(-ship.width / 2, -5);
+                ctx.lineTo(-ship.width / 2 - 15 - Math.random() * 10, 0);
+                ctx.lineTo(-ship.width / 2, 5);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+            
+            // Draw projectile (squiggly with ball tip)
+            function drawProjectile(p) {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                
+                // Squiggly tail
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                for (let i = 1; i <= 20; i++) {
+                    const wx = -i * 1.5;
+                    const wy = Math.sin((p.wave + i) * 0.5) * 4;
+                    ctx.lineTo(wx, wy);
+                }
+                ctx.stroke();
+                
+                // Ball tip
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(0, 0, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Glow
+                ctx.shadowColor = '#fff';
+                ctx.shadowBlur = 5;
+                ctx.beginPath();
+                ctx.arc(0, 0, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+            
+            // Draw target (donut)
+            function drawTarget() {
+                ctx.save();
+                ctx.translate(target.x, target.y);
+                
+                // Outer ring
+                ctx.fillStyle = '#ff69b4';
+                ctx.beginPath();
+                ctx.arc(0, 0, target.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Inner hole
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(0, 0, target.innerRadius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Frosting/shine
+                ctx.strokeStyle = '#ffb6c1';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, target.radius - 5, -0.5, 1.5);
+                ctx.stroke();
+                
+                // Sprinkles
+                ctx.fillStyle = '#ffff00';
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2 + Date.now() * 0.001;
+                    const r = target.radius - 10;
+                    ctx.fillRect(Math.cos(angle) * r - 2, Math.sin(angle) * r - 2, 4, 4);
+                }
+                
+                ctx.restore();
+            }
+            
+            // Update game
+            function update() {
+                if (!gameRunning || gameOver) return;
+                
+                // Move ship
+                if ((keys['ArrowUp'] || keys['w'] || keys['W']) && ship.y > ship.height) {
+                    ship.y -= ship.speed;
+                }
+                if ((keys['ArrowDown'] || keys['s'] || keys['S']) && ship.y < H - ship.height) {
+                    ship.y += ship.speed;
+                }
+                
+                // Move target
+                target.y += target.speedY * target.direction;
+                if (target.y < target.radius + 20 || target.y > H - target.radius - 20) {
+                    target.direction *= -1;
+                }
+                
+                // Update projectiles
+                projectiles.forEach(p => {
+                    p.x += p.speed;
+                    p.wave += 0.3;
+                });
+                
+                // Remove off-screen projectiles
+                projectiles = projectiles.filter(p => p.x < W + 50);
+                
+                // Check collisions
+                projectiles = projectiles.filter(p => {
+                    const dx = p.x - target.x;
+                    const dy = p.y - target.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Hit if in the donut ring (not the hole)
+                    if (dist < target.radius && dist > target.innerRadius) {
+                        score += 10;
+                        document.getElementById('scoreDisplay').textContent = score;
+                        playHitSound();
+                        
+                        // Speed up target slightly
+                        target.speedY = Math.min(8, target.speedY + 0.1);
+                        return false;
+                    }
+                    return true;
+                });
+                
+                // Update stars
+                stars.forEach(star => {
+                    star.x -= star.speed;
+                    if (star.x < 0) {
+                        star.x = W;
+                        star.y = Math.random() * H;
+                    }
+                });
+            }
+            
+            // Draw game
+            function draw() {
+                // Clear
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, W, H);
+                
+                // Stars
+                ctx.fillStyle = '#444';
+                stars.forEach(star => {
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                
+                // Grid lines (retro effect)
+                ctx.strokeStyle = 'rgba(32, 194, 14, 0.1)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < W; i += 50) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, 0);
+                    ctx.lineTo(i, H);
+                    ctx.stroke();
+                }
+                for (let i = 0; i < H; i += 50) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, i);
+                    ctx.lineTo(W, i);
+                    ctx.stroke();
+                }
+                
+                // Draw game objects
+                drawTarget();
+                projectiles.forEach(p => drawProjectile(p));
+                drawShip();
+                
+                // Scanline effect
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.03)';
+                for (let i = 0; i < H; i += 2) {
+                    ctx.fillRect(0, i, W, 1);
+                }
+            }
+            
+            // Game loop
+            function gameLoop() {
+                if (!document.getElementById('gameOverlay')) return;
+                
+                update();
+                draw();
+                
+                if (gameRunning && !gameOver) {
+                    requestAnimationFrame(gameLoop);
+                }
+            }
+            
+            // Timer
+            const timer = setInterval(() => {
+                if (!gameRunning || gameOver) {
+                    clearInterval(timer);
+                    return;
+                }
+                
+                timeLeft--;
+                document.getElementById('timeDisplay').textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    gameOver = true;
+                    document.getElementById('finalScore').textContent = score;
+                    document.getElementById('gameOver').style.display = 'block';
+                    document.getElementById('playerName').focus();
+                }
+            }, 1000);
+            
+            // Start game
+            gameLoop();
+            
+            // Submit score
+            window.submitScore = function() {
+                const name = document.getElementById('playerName').value.trim() || 'PILOT';
+                gameHighScores.push({ name: name.toUpperCase(), score: score });
+                gameHighScores.sort((a, b) => b.score - a.score);
+                gameHighScores = gameHighScores.slice(0, 10);
+                localStorage.setItem('rocketGameScores', JSON.stringify(gameHighScores));
+                updateLeaderboard();
+                document.getElementById('gameOver').style.display = 'none';
+                
+                // Show "play again" or exit
+                const playAgain = confirm('Score submitted! Play again?');
+                if (playAgain) {
+                    closeGame();
+                    setTimeout(() => startMiniGame(), 100);
+                } else {
+                    closeGame();
+                }
+            };
+            
+            // Close game
+            window.closeGame = function() {
+                gameRunning = false;
+                document.removeEventListener('keydown', handleKeyDown);
+                document.removeEventListener('keyup', handleKeyUp);
+                const overlay = document.getElementById('gameOverlay');
+                if (overlay) overlay.remove();
+                document.getElementById('commandInput').focus();
+            };
+            
+            // Update leaderboard display
+            function updateLeaderboard() {
+                const list = document.getElementById('scoreList');
+                if (!list) return;
+                
+                if (gameHighScores.length === 0) {
+                    list.innerHTML = '<li style="color: #666;">No scores yet</li>';
+                } else {
+                    list.innerHTML = gameHighScores.map((s, i) => 
+                        `<li><span class="score-name">${s.name}</span><span class="score-value">${s.score}</span></li>`
+                    ).join('');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
