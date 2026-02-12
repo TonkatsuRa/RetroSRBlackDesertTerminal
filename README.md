@@ -1,7 +1,7 @@
 I've created a little TTRPG Shadowrun Tool for a Data Terminal, that players can use to look up Information
 The main file is a HTML5 file that contains the Terminal
 Once the terminal is open, they need to upload a .dat file (encrypted TXT file) that contains all the entries possible
-In the Github Repository are also two other HTML5 files to help with creating the .dat files (haven't figured out how to have more than one gitpage per repository, so you would need to download them and open it in your browser). You can either write your own txt file with the same formatting and then use the encoder.html to turn it into .dat or you can use the fancier database-editor.html with a little GUI to create entries for the database file.
+In the Github Repository are is another HTML5 files to help with creating the .dat files (haven't figured out how to have more than one gitpage per repository, so you would need to download them and open it in your browser). You can use the database-editor.html with a little GUI to create entries for the database file.
 
 I've also added two minigames to the terminal that are hidden by codewords and there is an administrator password that unlocks additional options inside the terminal
 
@@ -16,7 +16,3 @@ Admin Password: 01100001 01110000 01101111 01100011 01100001 01101100 01111001 0
 https://tonkatsura.github.io/RetroSRBlackDesertTerminal/
 
 https://github.com/TonkatsuRa/RetroSRBlackDesertTerminal/blob/main/database-editor.html
-
-https://github.com/TonkatsuRa/RetroSRBlackDesertTerminal/blob/main/encoder.html
-
-https://github.com/TonkatsuRa/RetroSRBlackDesertTerminal/blob/main/database%20Example.txt
