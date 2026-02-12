@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DATABASE FORGE // ENTRY EDITOR</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --phosphor:#20c20e;--phosphor-dim:#0a3d08;--phosphor-glow:#39ff14;
+            --amber:#ffb000;--amber-dim:#4d3600;--red:#ff3333;--cyan:#00d4aa;
+            --magenta:#ff00ff;--bg:#050805;--panel-bg:rgba(5,15,5,0.95);
+            --input-bg:rgba(0,20,0,0.6);--sidebar-w:280px;
+        }
+        html,body{height:100%;overflow:hidden;background:var(--bg)}
+        body{font-family:'VT323',monospace;color:var(--phosphor);font-size:16px}
+
+        /* ═══ MATRIX RAIN CANVAS ═══ */
+        #matrixRain{position:fixed;inset:0;z-index:0;opacity:0.07;pointer-events:none}
+
+        /* ═══ CRT EFFECTS ═══ */
+        .crt-overlay{position:fixed;inset:0;pointer-events:none;z-index:9999}
+        .crt-overlay::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 1px,rgba(0,0,0,0.06) 1px,rgba(0,0,0,0.06) 2px)}
+        .crt-overlay::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 0%,transparent 55%,rgba(0,0,0,0.18) 80%,rgba(0,0,0,0.45) 100%)}
+        @keyframes crtBand{0%{transform:translateY(-100%)}100%{transform:translateY(100vh)}}
+        .crt-band{position:fixed;top:0;left:0;right:0;height:120px;background:linear-gradient(180deg,transparent,rgba(32,194,14,0.025),transparent);animation:crtBand 8s linear infinite;pointer-events:none;z-index:9998}
+
+        /* ═══ BOOT SCREEN ═══ */
+        #bootScreen{position:fixed;inset:0;z-index:10000;background:#020502;display:flex;align-items:center;justify-content:center;flex-direction:column;transition:opacity 0.8s}
+        #bootScreen.done{opacity:0;pointer-events:none}
+        #bootText{font-family:'VT323',monospace;color:var(--phosphor);font-size:clamp(12px,2.5vw,18px);white-space:pre-wrap;max-width:90vw;line-height:1.5;text-shadow:0 0 8px var(--phosphor)}
+        #bootCursor{display:inline-block;width:10px;height:1.1em;background:var(--phosphor);animation:blink 0.6s step-end infinite;vertical-align:text-bottom;margin-left:2px}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+        /* ═══ APP SHELL ═══ */
+        #app{height:100%;display:flex;flex-direction:column;position:relative;z-index:1;opacity:0;transition:opacity 0.5s}
+        #app.visible{opacity:1}
+
+        /* ═══ HEADER ═══ */
+        .header{
+            display:flex;align-items:center;
+            border-bottom:1px solid var(--phosphor-dim);
+            background:var(--panel-bg);
+            padding:0 12px;
+            height:48px;flex-shrink:0;
+            box-shadow:inset 0 0 40px rgba(32,194,14,0.04);
+            gap:10px;z-index:50;
+        }
+        .menu-btn{
+            width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+            border:1px solid var(--phosphor-dim);background:transparent;color:var(--phosphor);
+            font-family:'VT323',monospace;font-size:22px;cursor:pointer;flex-shrink:0;
+            transition:all 0.15s;
+        }
+        .menu-btn:hover{border-color:var(--phosphor);background:rgba(32,194,14,0.1);text-shadow:0 0 6px var(--phosphor)}
+        .menu-btn:active{transform:scale(0.93)}
+        .header-title{
+            font-size:clamp(14px,3vw,22px);color:var(--phosphor-glow);
+            text-shadow:0 0 12px var(--phosphor),0 0 25px var(--phosphor-dim);
+            letter-spacing:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+            flex:1;min-width:0;
+        }
+        /* Glitch effect on title */
+        @keyframes glitch{0%,94%,100%{transform:translate(0)}95%{transform:translate(-2px,1px)}96%{transform:translate(2px,-1px)}97%{transform:translate(-1px,2px)}98%{transform:translate(1px,-2px)}99%{transform:translate(-2px,0)}}
+        .header-title{animation:glitch 8s infinite}
+        .header-stats{display:flex;gap:14px;font-size:13px;opacity:0.7;flex-shrink:0}
+        .stat-val{color:var(--amber)}
+
+        /* ═══ MAIN AREA ═══ */
+        .main-area{flex:1;display:flex;min-height:0;position:relative}
+
+        /* ═══ SIDEBAR DRAWER ═══ */
+        .sidebar-backdrop{
+            display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:90;
+            opacity:0;transition:opacity 0.25s;
+        }
+        .sidebar-backdrop.visible{display:block;opacity:1}
+
+        .sidebar{
+            position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+            border-right:1px solid var(--phosphor-dim);
+            background:rgba(3,10,3,0.98);
+            display:flex;flex-direction:column;
+            z-index:100;
+            transform:translateX(-100%);
+            transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+            box-shadow:4px 0 30px rgba(0,0,0,0.5);
+        }
+        .sidebar.open{transform:translateX(0)}
+
+        .sidebar-header{
+            padding:12px 14px;
+            border-bottom:1px solid var(--phosphor-dim);
+            display:flex;align-items:center;justify-content:space-between;
+            background:rgba(0,20,0,0.4);flex-shrink:0;height:48px;
+        }
+        .sidebar-title{font-size:14px;color:var(--amber);letter-spacing:2px}
+        .sidebar-close{
+            width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+            border:1px solid var(--phosphor-dim);background:transparent;color:var(--phosphor);
+            font-family:'VT323',monospace;font-size:18px;cursor:pointer;
+        }
+        .sidebar-close:hover{border-color:var(--red);color:var(--red)}
+
+        .sidebar-actions{
+            padding:10px;display:flex;flex-wrap:wrap;gap:6px;
+            border-bottom:1px solid var(--phosphor-dim);flex-shrink:0;
+        }
+        .sidebar-actions .btn{flex:1;min-width:calc(50% - 4px);text-align:center;padding:10px 8px;font-size:14px}
+
+        .search-row{padding:8px 10px;border-bottom:1px solid var(--phosphor-dim);flex-shrink:0}
+        .search-input{
+            width:100%;background:var(--input-bg);border:1px solid var(--phosphor-dim);
+            color:var(--phosphor);font-family:'VT323',monospace;font-size:15px;padding:8px 10px;outline:none;
+        }
+        .search-input:focus{border-color:var(--phosphor);box-shadow:0 0 8px rgba(32,194,14,0.12)}
+        .search-input::placeholder{color:var(--phosphor-dim)}
+
+        .filter-row{padding:8px 10px;border-bottom:1px solid var(--phosphor-dim);display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0}
+        .filter-chip{
+            padding:4px 10px;border:1px solid var(--phosphor-dim);background:transparent;
+            color:var(--phosphor);font-family:'VT323',monospace;font-size:13px;cursor:pointer;
+            transition:all 0.15s;white-space:nowrap;
+        }
+        .filter-chip:hover{border-color:var(--phosphor);background:rgba(32,194,14,0.1)}
+        .filter-chip.active{background:rgba(32,194,14,0.2);border-color:var(--phosphor);color:var(--phosphor-glow);text-shadow:0 0 4px var(--phosphor)}
+
+        .entry-list{flex:1;overflow-y:auto;padding:4px 0}
+        .entry-list::-webkit-scrollbar{width:6px}
+        .entry-list::-webkit-scrollbar-track{background:rgba(0,0,0,0.3)}
+        .entry-list::-webkit-scrollbar-thumb{background:var(--phosphor-dim)}
+        .entry-item{
+            padding:12px 14px;cursor:pointer;border-left:3px solid transparent;
+            transition:all 0.1s;display:flex;align-items:center;gap:8px;
+        }
+        .entry-item:hover{background:rgba(32,194,14,0.08)}
+        .entry-item.selected{background:rgba(32,194,14,0.15);border-left-color:var(--phosphor);color:var(--phosphor-glow);text-shadow:0 0 4px var(--phosphor)}
+        .entry-item .cat-badge{font-size:11px;padding:2px 6px;border:1px solid;white-space:nowrap;flex-shrink:0}
+        .entry-item .entry-title-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
+        .cat-LOCATIONS{color:var(--cyan);border-color:var(--cyan)}
+        .cat-CORPORATIONS{color:var(--amber);border-color:var(--amber)}
+        .cat-PEOPLE{color:var(--phosphor-glow);border-color:var(--phosphor-glow)}
+        .cat-MAGIC{color:#c77dff;border-color:#c77dff}
+        .cat-TECH{color:#00b4d8;border-color:#00b4d8}
+        .cat-HISTORY{color:#e5989b;border-color:#e5989b}
+        .cat-FACTIONS{color:#f4a261;border-color:#f4a261}
+        .cat-CONFIDENTIAL{color:var(--magenta);border-color:var(--magenta)}
+        .cat-default{color:var(--phosphor);border-color:var(--phosphor)}
+
+        .sidebar-footer{
+            padding:8px 10px;border-top:1px solid var(--phosphor-dim);flex-shrink:0;
+            font-size:11px;color:var(--phosphor-dim);text-align:center;letter-spacing:1px;
+        }
+
+        /* ═══ EDITOR PANEL ═══ */
+        .editor-panel{
+            flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;
+            background:var(--panel-bg);
+        }
+        .editor-toolbar{
+            padding:6px 12px;border-bottom:1px solid var(--phosphor-dim);
+            display:flex;align-items:center;justify-content:space-between;
+            background:rgba(0,20,0,0.3);flex-shrink:0;gap:8px;
+            min-height:40px;flex-wrap:wrap;
+        }
+        .toolbar-label{font-size:13px;color:var(--amber);letter-spacing:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+        .toolbar-actions{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap}
+
+        .editor-body{
+            flex:1;display:flex;flex-direction:column;padding:10px;gap:10px;
+            overflow-y:auto;min-height:0;
+        }
+        .editor-body::-webkit-scrollbar{width:6px}
+        .editor-body::-webkit-scrollbar-track{background:rgba(0,0,0,0.3)}
+        .editor-body::-webkit-scrollbar-thumb{background:var(--phosphor-dim)}
+
+        .field-group{display:flex;flex-direction:column;gap:4px}
+        .field-row{display:flex;gap:10px}
+        .field-row .field-group{flex:1;min-width:0}
+        .field-label{font-size:12px;color:var(--cyan);letter-spacing:1px;text-shadow:0 0 4px rgba(0,212,170,0.3)}
+
+        .field-input,.field-select,.field-textarea{
+            background:var(--input-bg);border:1px solid var(--phosphor-dim);
+            color:var(--phosphor);font-family:'VT323',monospace;font-size:16px;
+            padding:8px 10px;outline:none;
+            transition:border-color 0.2s,box-shadow 0.2s;width:100%;
+        }
+        .field-input:focus,.field-select:focus,.field-textarea:focus{
+            border-color:var(--phosphor);box-shadow:0 0 12px rgba(32,194,14,0.15),inset 0 0 12px rgba(32,194,14,0.05);
+        }
+        .field-select{
+            cursor:pointer;-webkit-appearance:none;appearance:none;
+            background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%2320c20e' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+            background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;
+        }
+        .field-select option{background:#0a150a;color:var(--phosphor)}
+        .field-textarea{flex:1;resize:none;line-height:1.4;min-height:100px}
+
+        /* ═══ BUTTONS ═══ */
+        .btn{
+            padding:6px 14px;border:1px solid var(--phosphor-dim);background:rgba(0,30,0,0.6);
+            color:var(--phosphor);font-family:'VT323',monospace;font-size:14px;
+            cursor:pointer;transition:all 0.15s;white-space:nowrap;letter-spacing:1px;
+        }
+        .btn:hover{background:rgba(32,194,14,0.15);border-color:var(--phosphor);box-shadow:0 0 10px rgba(32,194,14,0.15);text-shadow:0 0 4px var(--phosphor)}
+        .btn:active{transform:scale(0.95)}
+        .btn.primary{border-color:var(--cyan);color:var(--cyan);text-shadow:0 0 4px rgba(0,212,170,0.3)}
+        .btn.primary:hover{background:rgba(0,212,170,0.15);box-shadow:0 0 12px rgba(0,212,170,0.2)}
+        .btn.danger{border-color:var(--red);color:var(--red)}
+        .btn.danger:hover{background:rgba(255,51,51,0.15);box-shadow:0 0 10px rgba(255,51,51,0.2)}
+        .btn.amber{border-color:var(--amber);color:var(--amber)}
+        .btn.amber:hover{background:rgba(255,176,0,0.15);box-shadow:0 0 10px rgba(255,176,0,0.2)}
+        .btn.magenta{border-color:var(--magenta);color:var(--magenta)}
+        .btn.magenta:hover{background:rgba(255,0,255,0.12);box-shadow:0 0 10px rgba(255,0,255,0.2)}
+        .btn.small{padding:4px 10px;font-size:13px}
+
+        .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;opacity:0.4;gap:12px;padding:20px}
+        .empty-state .ascii-art{font-size:clamp(7px,1.3vw,12px);line-height:1.15;white-space:pre;color:var(--phosphor-dim)}
+        .empty-state p{font-size:15px}
+
+        .content-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+        .content-toolbar .field-label{margin-right:auto}
+        .content-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--phosphor-dim);padding-top:2px}
+        .custom-cat-row{display:none;margin-top:4px}
+        .custom-cat-row.visible{display:flex;gap:6px}
+
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+        .unsaved-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 6px var(--amber);animation:pulse 1.5s ease-in-out infinite;margin-left:6px}
+
+        /* ═══ TOAST ═══ */
+        .toast-container{position:fixed;bottom:16px;right:16px;z-index:5000;display:flex;flex-direction:column;gap:8px;max-width:90vw}
+        .toast{padding:10px 16px;border:1px solid var(--phosphor);background:rgba(5,20,5,0.95);color:var(--phosphor-glow);font-family:'VT323',monospace;font-size:14px;box-shadow:0 0 20px rgba(32,194,14,0.2);animation:toastIn 0.3s ease-out}
+        .toast.error{border-color:var(--red);color:var(--red);box-shadow:0 0 20px rgba(255,51,51,0.2)}
+        .toast.amber{border-color:var(--amber);color:var(--amber);box-shadow:0 0 20px rgba(255,176,0,0.2)}
+        @keyframes toastIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+        /* ═══ DIALOGS ═══ */
+        .dialog-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:6000;justify-content:center;align-items:center;padding:16px}
+        .dialog-overlay.active{display:flex}
+        .dialog-box{border:2px solid var(--amber);background:rgba(5,15,5,0.98);padding:24px;max-width:420px;width:100%;text-align:center;box-shadow:0 0 60px rgba(255,176,0,0.15)}
+        .dialog-box h2{color:var(--amber);font-size:20px;margin-bottom:14px;letter-spacing:2px}
+        .dialog-box p{color:#888;margin-bottom:18px;font-size:15px}
+        .dialog-actions{display:flex;gap:12px;justify-content:center}
+        .import-zone{border:2px dashed var(--phosphor-dim);padding:30px;text-align:center;cursor:pointer;transition:all 0.2s;margin-bottom:16px}
+        .import-zone:hover,.import-zone.dragover{border-color:var(--phosphor);background:rgba(32,194,14,0.05)}
+
+        /* ═══ ASCII PICKER ═══ */
+        .ascii-picker-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:7000;justify-content:center;align-items:center;padding:10px}
+        .ascii-picker-overlay.active{display:flex}
+        .ascii-picker{width:min(96vw,920px);max-height:90vh;border:2px solid var(--cyan);background:rgba(3,10,3,0.98);display:flex;flex-direction:column;box-shadow:0 0 80px rgba(0,212,170,0.15)}
+        .ascii-picker-header{padding:10px 14px;border-bottom:1px solid var(--phosphor-dim);display:flex;align-items:center;justify-content:space-between;background:rgba(0,30,20,0.4);flex-shrink:0}
+        .ascii-picker-header h2{color:var(--cyan);font-size:clamp(14px,2.5vw,20px);letter-spacing:3px;text-shadow:0 0 10px rgba(0,212,170,0.4)}
+        .ascii-picker-body{display:flex;flex:1;min-height:0}
+        .ascii-tabs{width:160px;border-right:1px solid var(--phosphor-dim);overflow-y:auto;flex-shrink:0;background:rgba(0,10,5,0.5)}
+        .ascii-tabs::-webkit-scrollbar{width:4px}.ascii-tabs::-webkit-scrollbar-thumb{background:var(--phosphor-dim)}
+        .ascii-tab{padding:10px 12px;cursor:pointer;border-left:3px solid transparent;transition:all 0.12s;font-size:14px;display:flex;align-items:center;gap:8px}
+        .ascii-tab:hover{background:rgba(0,212,170,0.08)}
+        .ascii-tab.active{background:rgba(0,212,170,0.12);border-left-color:var(--cyan);color:var(--cyan);text-shadow:0 0 5px rgba(0,212,170,0.4)}
+        .ascii-tab .tab-icon{font-size:1.1em;width:20px;text-align:center;flex-shrink:0}
+        .ascii-tab .tab-count{margin-left:auto;font-size:0.75em;opacity:0.4}
+        .ascii-grid-area{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:10px;min-width:0}
+        .ascii-grid-area::-webkit-scrollbar{width:6px}.ascii-grid-area::-webkit-scrollbar-track{background:rgba(0,0,0,0.3)}.ascii-grid-area::-webkit-scrollbar-thumb{background:var(--phosphor-dim)}
+        .ascii-card{border:1px solid var(--phosphor-dim);background:rgba(0,15,5,0.6);cursor:pointer;transition:all 0.15s}
+        .ascii-card:hover{border-color:var(--cyan);background:rgba(0,212,170,0.06);box-shadow:0 0 15px rgba(0,212,170,0.1)}
+        .ascii-card-header{padding:6px 12px;border-bottom:1px solid var(--phosphor-dim);display:flex;align-items:center;justify-content:space-between;background:rgba(0,20,10,0.3)}
+        .ascii-card-name{color:var(--amber);font-size:13px;letter-spacing:1px}
+        .ascii-card-insert{color:var(--cyan);font-size:12px;opacity:0;transition:opacity 0.15s}
+        .ascii-card:hover .ascii-card-insert{opacity:1}
+        .ascii-card-preview{padding:8px 12px;font-family:'VT323',monospace;font-size:clamp(8px,1.1vw,13px);line-height:1.15;white-space:pre;overflow-x:auto;color:var(--phosphor);max-height:180px;overflow-y:auto}
+        .ascii-card-preview::-webkit-scrollbar{height:4px;width:4px}.ascii-card-preview::-webkit-scrollbar-thumb{background:var(--phosphor-dim)}
+        .ascii-search-row{padding:8px 10px;border-bottom:1px solid var(--phosphor-dim);flex-shrink:0}
+        .ascii-search-input{width:100%;background:var(--input-bg);border:1px solid var(--phosphor-dim);color:var(--phosphor);font-family:'VT323',monospace;font-size:15px;padding:6px 10px;outline:none}
+        .ascii-search-input:focus{border-color:var(--cyan);box-shadow:0 0 8px rgba(0,212,170,0.12)}
+        .ascii-search-input::placeholder{color:var(--phosphor-dim)}
+
+        /* ═══ DESKTOP: pinned sidebar ═══ */
+        @media(min-width:1025px){
+            .sidebar{
+                position:relative;top:auto;left:auto;bottom:auto;
+                transform:none;transition:width 0.3s,min-width 0.3s,opacity 0.3s;
+                width:var(--sidebar-w);min-width:var(--sidebar-w);box-shadow:none;
+                border-right:1px solid var(--phosphor-dim);
+            }
+            .sidebar.collapsed{width:0;min-width:0;overflow:hidden;border-right:none;opacity:0;padding:0}
+            .sidebar-backdrop{display:none!important}
+            .sidebar-close{display:none}
+        }
+
+        /* ═══ TABLET ═══ */
+        @media(min-width:601px) and (max-width:1024px){
+            :root{--sidebar-w:300px}
+            .header-stats .stat-cats{display:none}
+        }
+
+        /* ═══ PHONE ═══ */
+        @media(max-width:600px){
+            :root{--sidebar-w:100vw}
+            body{font-size:15px}
+            .sidebar{width:100vw;max-width:100vw}
+            .header-stats{display:none}
+            .field-row{flex-direction:column}
+            .editor-body{padding:8px}
+            .editor-toolbar{padding:6px 8px}
+            .toolbar-actions .btn{padding:5px 8px;font-size:12px}
+            .ascii-tabs{width:48px}
+            .ascii-tab span:not(.tab-icon){display:none}
+            .ascii-tab .tab-icon{margin:0 auto}
+            .ascii-picker{max-height:95vh}
+        }
+
+        /* ═══ AMBIENT DATA STREAM ═══ */
+        @keyframes dataStream{
+            0%{background-position:0% 0%}
+            100%{background-position:0% 100%}
+        }
+        .editor-panel::before{
+            content:"";position:absolute;top:0;right:0;width:1px;height:100%;
+            background:repeating-linear-gradient(180deg,transparent 0px,transparent 8px,var(--phosphor-dim) 8px,var(--phosphor-dim) 10px);
+            opacity:0.3;animation:dataStream 20s linear infinite;background-size:100% 200%;
+            pointer-events:none;z-index:0;
+        }
+        .editor-panel{position:relative}
+    </style>
+</head>
+<body>
+
+<canvas id="matrixRain"></canvas>
+<div class="crt-overlay"></div>
+<div class="crt-band"></div>
+
+<!-- BOOT SCREEN -->
+<div id="bootScreen"><div id="bootText"></div></div>
+
+<!-- APP -->
+<div id="app">
+    <div class="header">
+        <button class="menu-btn" id="menuBtn" onclick="toggleSidebar()" title="Toggle Menu">☰</button>
+        <div class="header-title">◈ DATABASE FORGE <span style="font-size:0.6em;opacity:0.5">v2.2</span></div>
+        <div class="header-stats">
+            <span>ENTRIES: <span class="stat-val" id="statEntries">0</span></span>
+            <span class="stat-cats">CATS: <span class="stat-val" id="statCats">0</span></span>
+            <span id="unsavedIndicator" style="display:none">⬤ <span class="unsaved-dot"></span></span>
+        </div>
+    </div>
+
+    <div class="main-area">
+        <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">◈ ENTRY INDEX</span>
+                <button class="sidebar-close" onclick="closeSidebar()">✕</button>
+            </div>
+            <div class="sidebar-actions">
+                <button class="btn primary" onclick="newEntry()">+ NEW</button>
+                <button class="btn amber" onclick="showImportDialog()">⬆ IMPORT</button>
+                <button class="btn" onclick="exportTxt()">⬇ TXT</button>
+                <button class="btn primary" onclick="exportDat()">⬇ DAT</button>
+            </div>
+            <div class="search-row">
+                <input class="search-input" id="searchInput" type="text" placeholder="▸ SEARCH..." oninput="renderEntryList()">
+            </div>
+            <div class="filter-row" id="filterRow"></div>
+            <div class="entry-list" id="entryList"></div>
+            <div class="sidebar-footer">DATABASE FORGE // SYS v2.2</div>
+        </div>
+
+        <div class="editor-panel">
+            <div class="editor-toolbar">
+                <span class="toolbar-label" id="editorLabel">NO ENTRY SELECTED</span>
+                <div class="toolbar-actions" id="toolbarActions" style="display:none">
+                    <button class="btn primary" onclick="saveCurrentEntry()">✓ SAVE</button>
+                    <button class="btn" onclick="duplicateEntry()">⊕ CLONE</button>
+                    <button class="btn danger" onclick="confirmDeleteEntry()">✕ DEL</button>
+                </div>
+            </div>
+            <div class="editor-body" id="editorBody">
+                <div class="empty-state" id="emptyState">
+                    <div class="ascii-art">
+  ╔════════════════════════════╗
+  ║  ▄▀▀▀▄  DATABASE  ▄▀▀▀▄  ║
+  ║  █   █   FORGE    █   █  ║
+  ║  ▀▄▄▄▀  EDITOR    ▀▄▄▄▀  ║
+  ╠════════════════════════════╣
+  ║  ☰ Menu for entries/IO    ║
+  ║  ◈ ASCII art in editor    ║
+  ╚════════════════════════════╝</div>
+                    <p>Open the menu or create a new entry</p>
+                </div>
+                <div id="editorFields" style="display:none;flex:1;display:none;flex-direction:column;gap:10px">
+                    <div class="field-row">
+                        <div class="field-group" style="flex:0 0 auto;min-width:120px">
+                            <label class="field-label">CATEGORY</label>
+                            <select class="field-select" id="fieldCategory" onchange="onCategoryChange()">
+                                <option value="LOCATIONS">LOCATIONS</option>
+                                <option value="CORPORATIONS">CORPORATIONS</option>
+                                <option value="PEOPLE">PEOPLE</option>
+                                <option value="MAGIC">MAGIC</option>
+                                <option value="TECH">TECH</option>
+                                <option value="HISTORY">HISTORY</option>
+                                <option value="FACTIONS">FACTIONS</option>
+                                <option value="CONFIDENTIAL">CONFIDENTIAL</option>
+                                <option value="__custom__">+ CUSTOM...</option>
+                            </select>
+                            <div class="custom-cat-row" id="customCatRow">
+                                <input class="field-input" id="customCatInput" placeholder="NAME..." style="text-transform:uppercase">
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">TITLE</label>
+                            <input class="field-input" id="fieldTitle" type="text" placeholder="Entry title..." autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="field-group" style="flex:1;display:flex;flex-direction:column">
+                        <div class="content-toolbar">
+                            <label class="field-label">CONTENT</label>
+                            <button class="btn small amber" onclick="insertImage()">⬒ IMAGE</button>
+                            <button class="btn small magenta" onclick="openAsciiPicker()">◈ ASCII ART</button>
+                        </div>
+                        <textarea class="field-textarea" id="fieldContent" placeholder="Write entry content here..." style="flex:1"></textarea>
+                        <div class="content-meta">
+                            <span id="charCount">0 chars</span>
+                            <span id="wordCount">0 words</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dialogs -->
+<div class="dialog-overlay" id="deleteDialog">
+    <div class="dialog-box">
+        <h2>⚠ CONFIRM DELETION</h2>
+        <p id="deleteMsg">Permanently remove this entry?</p>
+        <div class="dialog-actions">
+            <button class="btn danger" onclick="doDeleteEntry()">DELETE</button>
+            <button class="btn" onclick="closeDialog('deleteDialog')">CANCEL</button>
+        </div>
+    </div>
+</div>
+
+<div class="dialog-overlay" id="importDialog">
+    <div class="dialog-box" style="max-width:460px">
+        <h2>⬆ IMPORT DATABASE</h2>
+        <p>Load .txt (raw) or .dat (encrypted)</p>
+        <div class="import-zone" id="importZone" onclick="document.getElementById('importFileInput').click()">
+            <p style="color:var(--phosphor);font-size:1.2em">DROP FILE HERE</p>
+            <p style="color:var(--phosphor-dim);font-size:0.8em;margin-top:6px">or tap to browse</p>
+        </div>
+        <input type="file" id="importFileInput" accept=".txt,.dat,.db,.bin" style="display:none" onchange="handleImportFile(event)">
+        <div class="dialog-actions"><button class="btn" onclick="closeDialog('importDialog')">CANCEL</button></div>
+    </div>
+</div>
+
+<!-- ASCII Picker -->
+<div class="ascii-picker-overlay" id="asciiPickerOverlay">
+    <div class="ascii-picker">
+        <div class="ascii-picker-header">
+            <h2>◈ ASCII ART</h2>
+            <button class="btn small" onclick="closeAsciiPicker()">✕ CLOSE</button>
+        </div>
+        <div class="ascii-search-row">
+            <input class="ascii-search-input" id="asciiSearch" type="text" placeholder="▸ SEARCH ART..." oninput="renderAsciiGrid()">
+        </div>
+        <div class="ascii-picker-body">
+            <div class="ascii-tabs" id="asciiTabs"></div>
+            <div class="ascii-grid-area" id="asciiGrid"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Dialog -->
+<div class="dialog-overlay" id="imageDialog">
+    <div class="dialog-box" style="max-width:500px">
+        <h2>⬒ INSERT IMAGE</h2>
+        <p>Select an image to embed (JPG, PNG, GIF, WebP)</p>
+        <div class="import-zone" id="imageDropZone" onclick="document.getElementById('imageFileInput').click()">
+            <p style="color:var(--phosphor);font-size:1.2em">DROP IMAGE HERE</p>
+            <p style="color:var(--phosphor-dim);font-size:0.8em;margin-top:6px">or tap to browse</p>
+        </div>
+        <input type="file" id="imageFileInput" accept="image/*" style="display:none" onchange="handleImageFile(event)">
+        <div id="imagePreviewContainer" style="display:none;margin-bottom:16px">
+            <div style="color:var(--cyan);font-size:12px;margin-bottom:6px">PREVIEW:</div>
+            <div style="border:1px solid var(--phosphor-dim);padding:8px;background:rgba(0,0,0,0.4);max-height:200px;overflow:auto">
+                <img id="imagePreview" style="max-width:100%;filter:sepia(20%) hue-rotate(70deg) brightness(0.9);image-rendering:auto">
+            </div>
+            <div style="margin-top:8px;display:flex;justify-content:space-between;font-size:12px">
+                <span id="imageSizeInfo" style="color:var(--phosphor-dim)"></span>
+                <span id="imageB64Size" style="color:var(--amber)"></span>
+            </div>
+        </div>
+        <div class="dialog-actions">
+            <button class="btn primary" id="insertImageBtn" onclick="doInsertImage()" style="display:none">INSERT</button>
+            <button class="btn" onclick="closeImageDialog()">CANCEL</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ═══════════════════════════════════
+// MATRIX RAIN
+// ═══════════════════════════════════
+(function(){
+    const c=document.getElementById('matrixRain'),ctx=c.getContext('2d');
+    let w,h,cols,drops;
+    const chars='アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF';
+    function resize(){w=c.width=window.innerWidth;h=c.height=window.innerHeight;cols=Math.floor(w/14);drops=Array(cols).fill(1)}
+    function draw(){
+        ctx.fillStyle='rgba(5,8,5,0.12)';ctx.fillRect(0,0,w,h);
+        ctx.fillStyle='#0f3';ctx.font='12px monospace';
+        for(let i=0;i<cols;i++){
+            const ch=chars[Math.floor(Math.random()*chars.length)];
+            ctx.globalAlpha=Math.random()*0.5+0.1;
+            ctx.fillText(ch,i*14,drops[i]*14);
+            if(drops[i]*14>h&&Math.random()>0.975)drops[i]=0;
+            drops[i]++;
+        }
+        ctx.globalAlpha=1;
+        requestAnimationFrame(draw);
+    }
+    resize();window.addEventListener('resize',resize);draw();
+})();
+
+// ═══════════════════════════════════
+// BOOT SEQUENCE
+// ═══════════════════════════════════
+(function(){
+    const lines=[
+        'BIOS CHECK .............. OK',
+        'MEM TEST: 2048TB NVRAM .. OK',
+        'NEURAL LINK INTERFACE ... STANDBY',
+        'MATRIX CONN: GRID ....... ACTIVE',
+        'ENCRYPTION MODULE ....... LOADED',
+        'XOR KEY HASH ............ ████████',
+        '',
+        '╔═══════════════════════════════╗',
+        '║    D A T A B A S E  F O R G E ║',
+        '║         ENTRY EDITOR v2.2     ║',
+        '╚═══════════════════════════════╝',
+        '',
+        'SYSTEM READY. INITIALIZING UI...',
+    ];
+    const el=document.getElementById('bootText');
+    let li=0,ci=0,buf='';
+    function type(){
+        if(li>=lines.length){finish();return}
+        if(ci<lines[li].length){
+            buf+=lines[li][ci];ci++;
+            el.innerHTML=buf+'<span id="bootCursor"></span>';
+            setTimeout(type,lines[li][ci-1]==='.'?30:Math.random()*20+10);
+        }else{
+            buf+='\n';li++;ci=0;
+            setTimeout(type,li>=lines.length?400:80);
+        }
+    }
+    function finish(){
+        setTimeout(()=>{
+            document.getElementById('bootScreen').classList.add('done');
+            document.getElementById('app').classList.add('visible');
+            SFX.init();SFX.load();
+            // Auto-open sidebar on desktop
+            if(window.innerWidth>=1025)openSidebar();
+        },600);
+    }
+    setTimeout(type,300);
+})();
+
+// ═══════════════════════════════════
+// AUDIO
+// ═══════════════════════════════════
+const SFX={
+    ctx:null,
+    init(){if(!this.ctx)this.ctx=new(window.AudioContext||window.webkitAudioContext)()},
+    play(f,t,d,v=0.05){if(!this.ctx)return;const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.connect(g);g.connect(this.ctx.destination);o.frequency.value=f;o.type=t;g.gain.setValueAtTime(v,this.ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,this.ctx.currentTime+d);o.start();o.stop(this.ctx.currentTime+d)},
+    click(){this.play(800,'square',0.03,0.025)},
+    save(){this.play(440,'sine',0.1,0.05);setTimeout(()=>this.play(660,'sine',0.12,0.05),80);setTimeout(()=>this.play(880,'sine',0.15,0.04),160)},
+    del(){this.play(220,'sawtooth',0.15,0.04);setTimeout(()=>this.play(110,'sawtooth',0.2,0.03),100)},
+    error(){this.play(150,'square',0.2,0.05)},
+    load(){[330,440,550,660].forEach((f,i)=>setTimeout(()=>this.play(f,'sine',0.1,0.035),i*60))},
+    insert(){this.play(600,'sine',0.06,0.035);setTimeout(()=>this.play(900,'sine',0.08,0.035),50)}
+};
+document.addEventListener('click',()=>SFX.init(),{once:true});
+
+// ═══════════════════════════════════
+// STATE
+// ═══════════════════════════════════
+let entries=[],selectedId=null,unsavedChanges=false,activeFilter='ALL',nextId=1,activeAsciiTab='corps';
+const ENCRYPTION_KEY='Shelby';
+function xorCrypt(t){let r='';for(let i=0;i<t.length;i++)r+=String.fromCharCode(t.charCodeAt(i)^ENCRYPTION_KEY.charCodeAt(i%ENCRYPTION_KEY.length));return r}
+
+// ═══════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════
+function isDesktop(){return window.innerWidth>=1025}
+
+function openSidebar(){
+    const s=document.getElementById('sidebar');
+    s.classList.add('open');s.classList.remove('collapsed');
+    if(!isDesktop())document.getElementById('sidebarBackdrop').classList.add('visible');
+}
+function closeSidebar(){
+    const s=document.getElementById('sidebar');
+    if(isDesktop()){s.classList.add('collapsed')}else{s.classList.remove('open')}
+    document.getElementById('sidebarBackdrop').classList.remove('visible');
+}
+function toggleSidebar(){
+    const s=document.getElementById('sidebar');
+    if(isDesktop()){
+        s.classList.toggle('collapsed');
+        if(!s.classList.contains('collapsed'))s.classList.add('open');
+    }else{
+        if(s.classList.contains('open')){closeSidebar()}else{openSidebar()}
+    }
+    SFX.click();
+}
+
+// Handle resize: reset sidebar state
+window.addEventListener('resize',()=>{
+    const s=document.getElementById('sidebar');
+    if(isDesktop()){
+        document.getElementById('sidebarBackdrop').classList.remove('visible');
+        if(!s.classList.contains('collapsed')){s.classList.add('open')}
+    }
+});
+
+// ═══════════════════════════════════
+// ASCII ART LIBRARY (same as before)
+// ═══════════════════════════════════
+const ASCII_LIB={
+corps:{label:'CORPORATIONS',icon:'◆',items:[
+{name:'Ares Macrotechnology',art:`    ╔═══════════════════════╗
+    ║  ▄▄▄  ██████ ████████ ║
+    ║ █   █ █    █ █        ║
+    ║ █▄▄▄█ ██████ ████████ ║
+    ║ █   █ █   █  █        ║
+    ║ █   █ █    █ ████████ ║
+    ║   ARES MACROTECHNOLOGY ║
+    ║   "Making the World   ║
+    ║      Safer"           ║
+    ╚═══════════════════════╝`},
+{name:'Aztechnology',art:`        /\\
+       /  \\
+      / ◈◈ \\
+     / ◈◈◈◈ \\
+    /  ◈◈◈◈  \\
+   /  ◈ /\\ ◈  \\
+  / ◈◈ /  \\ ◈◈ \\
+ /____/____\\____\\
+ ╔══════════════╗
+ ║ AZTECHNOLOGY ║
+ ║  Más Vida.   ║
+ ╚══════════════╝`},
+{name:'Renraku Computer Systems',art:`   ┌─────────────────────┐
+   │  ╱╲    ╱╲    ╱╲     │
+   │ ╱  ╲  ╱  ╲  ╱  ╲    │
+   │╱    ╲╱    ╲╱    ╲   │
+   │ R E N R A K U       │
+   │ Computer Systems    │
+   │ "Grid Overwatch"    │
+   └─────────────────────┘`},
+{name:'Saeder-Krupp Heavy Industries',art:`       ,     /
+      / \\~~~/
+     {  (◉)  }
+      \\  ~ /\\
+       \\  / |\\
+     ___\\/__|_\\__
+    ╔════════════════╗
+    ║  SAEDER-KRUPP  ║
+    ║ Heavy Industry ║
+    ╚════════════════╝`},
+{name:'NeoNET',art:`   ┌──────────────────┐
+   │ ╲  ╱ ╲  ╱ ╲  ╱   │
+   │  ╲╱   ╲╱   ╲╱    │
+   │  ╱╲   ╱╲   ╱╲    │
+   │ ╱  ╲ ╱  ╲ ╱  ╲   │
+   │   N E O N E T    │
+   │  Global Matrix   │
+   └──────────────────┘`},
+{name:'Evo Corporation',art:`   ┌───────────────────┐
+   │   ╭─╮  ╭─╮  ╭─╮   │
+   │   │E│  │V│  │O│   │
+   │   ╰─╯  ╰─╯  ╰─╯   │
+   │  EVO CORPORATION   │
+   │  "Changing Life"   │
+   └───────────────────┘`},
+{name:'Horizon Group',art:`      ───────────
+     ╱           ╲
+    │  ☀ HORIZON  │
+    │    GROUP    │
+     ╲           ╱
+      ───────────
+   "We Know What
+    You Think"`},
+{name:'Mitsuhama (MCT)',art:`   ╔═══════════════════╗
+   ║  ┌──┐  ┌──┐  ┌──┐ ║
+   ║  │▓▓│──│▓▓│──│▓▓│ ║
+   ║  └──┘  └──┘  └──┘ ║
+   ║   MITSUHAMA COMP   ║
+   ║    TECHNOLOGY      ║
+   ╚═══════════════════╝`},
+{name:'Wuxing Incorporated',art:`       ╱╲
+      ╱  ╲
+     ╱ ☯  ╲
+    ╱  WX   ╲
+   ╱─────────╲
+   ║   WUXING  ║
+   ║Incorporated║`},
+{name:'Lone Star Security',art:`      .─────.
+     ╱   ★   ╲
+    │  L O N E │
+    │  S T A R │
+     ╲       ╱
+      '─────'
+  Security Services
+ "To Protect & Profit"`},
+{name:'DocWagon',art:`   ╔═══════════════╗
+   ║   ┌───────┐   ║
+   ║   │  ╋    │   ║
+   ║   │ ╋╋╋   │   ║
+   ║   │  ╋    │   ║
+   ║   └───────┘   ║
+   ║   DOC WAGON   ║
+   ║  "We Save     ║
+   ║   Your Life." ║
+   ╚═══════════════╝`},
+{name:'Knight Errant',art:`     ┌────────────────┐
+     │    /|  K.E.     │
+     │   / |  KNIGHT   │
+     │  /  |  ERRANT   │
+     │ / ◆ | Security  │
+     │/    |           │
+     │ "Serve & Protect"│
+     └────────────────┘`},
+{name:'Shiawase Corporation',art:`   ╔═══════════════════╗
+   ║  ╱╲      ╱╲       ║
+   ║ ╱╱╲╲    ╱╱╲╲      ║
+   ║╱╱  ╲╲  ╱╱  ╲╲     ║
+   ║  SHIAWASE CORP     ║
+   ║  "Nurturing the   ║
+   ║     Future"        ║
+   ╚═══════════════════╝`},
+]},
+items:{label:'GEAR & ITEMS',icon:'⬡',items:[
+{name:'Credstick',art:`  ╔════════════════════════╗
+  ║ ▓▓▓ CERTIFIED ▓▓▓     ║
+  ║  ████ ████ ████ ████   ║
+  ║  CRED: ¥¥¥,¥¥¥.¥¥     ║
+  ║  ZURICH ORBITAL BANK   ║
+  ╚════════════════════════╝`},
+{name:'Commlink',art:`  ┌──────────────────┐
+  │ ╔══════════════╗  │
+  │ ║  ☰ 14:07     ║  │
+  │ ║   ◉ ACTIVE   ║  │
+  │ ║   ↑ 47.2Mb   ║  │
+  │ ║   ▓▓▓▓▓░░░   ║  │
+  │ ╚══════════════╝  │
+  │    [  ◯  ]        │
+  └──────────────────┘
+    HERMES IKON`},
+{name:'Datajack',art:`      ┌──────┐
+     ╱ ○○○○○ ╲
+    │ ┌──────┐ │
+    │ │▓▓▓▓▓▓│ │
+    │ │ JACK │ │
+    │ └──────┘ │
+     ╲________╱
+    DATAJACK v3.1`},
+{name:'Nuyen Bundle (Payday)',art:`      ╔════════╗
+     ╔║ ¥50000 ║
+    ╔║╚════════╝
+   ╔║╚════════╝
+  ╔║╚════════╝
+  ║╚════════╝
+  ╚════════╝
+ PAYDAY, CHUMMER!`},
+{name:'Ares Predator V',art:`         _______
+        /      /|
+  ─────/──────/ │
+  │ ▓▓▓▓▓▓▓ │  │
+  │   ARES   │ /
+  │PREDATOR V│/
+  └──────────┘
+  Heavy Pistol | 8P`},
+{name:'Medkit',art:`  ╔══════════════╗
+  ║  ┌────────┐  ║
+  ║  │   ╋    │  ║
+  ║  │  ╋╋╋   │  ║
+  ║  │   ╋    │  ║
+  ║  └────────┘  ║
+  ║  MEDKIT R-6  ║
+  ╚══════════════╝`},
+{name:'BTL Chip',art:`    ┌─────────────┐
+    │ ╱╱╱╱╱╱╱╱╱╱  │
+    │ ║ BTL-CHIP ║ │
+    │ ║ ████████ ║ │
+    │ ║ DREAMCHP ║ │
+    │ ╱╱╱╱╱╱╱╱╱╱  │
+    └──────┬──────┘
+    !! ILLEGAL !!`},
+{name:'Stim Patch',art:`  ╭──────────────╮
+  │ ◎ STIM PATCH │
+  │ R6 COMBAT    │
+  │ ▓▓▓▓▓▓▓▓▓▓  │
+  │ APPLY TO SKIN│
+  ╰──────────────╯`},
+{name:'Fake SIN',art:`  ╔══════════════════════╗
+  ║ UCAS SYSTEM ID NEXUS ║
+  ╠══════════════════════╣
+  ║ ┌────┐               ║
+  ║ │ ID │ NAME:_______  ║
+  ║ │FOTO│ SIN:________  ║
+  ║ └────┘ CLASS: ★★★★  ║
+  ╚══════════════════════╝
+     RATING 4 FAKE`},
+{name:'Cyberdeck',art:`  ┌─────────────────────┐
+  │ ┌─┐┌─┐┌─┐┌─┐┌─┐┌─┐ │
+  │ └─┘└─┘└─┘└─┘└─┘└─┘ │
+  │ ╔═════════════════╗  │
+  │ ║ MATRIX: ONLINE  ║  │
+  │ ║ IC STATUS: ░░░  ║  │
+  │ ╚═════════════════╝  │
+  │  █ █ █ █ █ █ █ █ █  │
+  └─────────────────────┘
+   ERIKA ELITE`},
+{name:'Magical Focus',art:`        ✦
+       ╱|╲
+      ╱ | ╲
+     ◈──◆──◈
+      ╲ | ╱
+       ╲|╱
+        ✦
+   POWER FOCUS`},
+{name:'Trauma Patch',art:`  ╭──────────────╮
+  │ ╋ TRAUMA      │
+  │   PATCH       │
+  │ R6 EMERGENCY │
+  │ ▓▓▓▓▓▓▓▓▓▓  │
+  │ PEEL & APPLY │
+  ╰──────────────╯`},
+]},
+characters:{label:'CHARACTERS',icon:'☺',items:[
+{name:'Street Samurai',art:`       ╭───╮
+       │◉ ◉│
+       │ ▄ │
+       ╰┬─┬╯
+    ╔═══╧══╧═══╗
+    ║ ▓▓▓▓▓▓▓▓ ║
+    ║ ║CHROME║  ║
+    ╚════╤═╤═══╝
+        ┌┘ └┐
+    STREET SAMURAI`},
+{name:'Ork',art:`       ╭─────╮
+       │ ◣ ◢ │
+       │╱▓▓▓╲│
+       │ ▼▼▼ │
+       ╰──┬──╯
+       ╔══╧══╗
+       ║ ORK ║
+       ╚══╤══╝
+        ╱   ╲`},
+{name:'Elf Decker',art:`       ╭──╮
+      ╱│◉◉│╲
+     ╱ │▁▁│ ╲
+      ╲ ╰╯ ╱
+    ┌──────────┐
+    │ ELF      │
+    │ DECKER   │
+    └────┬─────┘
+    MATRIX COWBOY`},
+{name:'Troll',art:`     ╭─────────╮
+     │  ◣   ◢  │
+     │ ┌─────┐ │
+     │ │▓▓▓▓▓│ │
+     │ └──▼──┘ │
+   ╔═╧═════════╧═╗
+   ║   T R O L L  ║
+   ╚══════╤═══════╝
+       ╱█████╲
+    [BODY: 10+]`},
+{name:'Dwarf Rigger',art:`       ╭───╮
+       │⊙ ⊙│
+       │═▄═│
+       ╰─┬─╯
+      ╔══╧══╗
+      ║ RIG ║
+      ║CTRL ║
+      ╚══╤══╝
+   DWARF RIGGER
+   [JUMPED IN]`},
+{name:'Mage (Hermetic)',art:`         ✦
+        ╱|╲
+      ╭──┴──╮
+      │ ◈  ◈│
+      │  ▽  │
+      ╰──┬──╯
+    ╔════╧════╗
+    ║ ◈ MAGE ◈║
+    ╚════╤════╝
+   AWAKENED`},
+{name:'Shaman',art:`      ╱╲  ╱╲
+     ╱◈◈╲╱◈◈╲
+     ╲ TOTEM ╱
+      ╲────╱
+       ╭───╮
+       │⊕ ⊕│
+       ╰─┬─╯
+      ╔══╧══╗
+      ║SHAMN║
+      ╚══╤══╝
+     [SPIRIT BOUND]`},
+{name:'Technomancer',art:`      ╭─·───·─╮
+      │ ☊   ☊ │
+      │  ▓▓▓  │
+      ╰──┬┬──╯
+    ┌─────┘└─────┐
+    │ TECHNO     │
+    │  MANCER    │
+    └─────┬──────┘
+     [MATRIX NATIVE]`},
+{name:'Mr. Johnson',art:`       ╭───╮
+       │─ ─│
+       │ ▪ │
+       ╰─┬─╯
+    ╔════╧════╗
+    ║ █ SUIT █║
+    ║  CORPO  ║
+    ╚════╤════╝
+   MR. JOHNSON`},
+{name:'Great Dragon',art:`          /\\    /\\
+         /  \\__/  \\
+   ─────/ (◉)(◉)   \\───
+        \\ ~~<▼>~~ /
+         \\  ╱╲  /
+       ╱╲╱\\╱╱╲╲╱╲╱╲
+      ╱╱╱ DRAGON  ╲╲╲
+      [GREAT DRAGON]`},
+{name:'Human',art:`       ╭───╮
+       │° °│
+       │ ▫ │
+       ╰─┬─╯
+      ╔══╧══╗
+      ║HUMAN║
+      ╚══╤══╝
+       ┌─┘└─┐`},
+]},
+hazards:{label:'HAZARD SYMBOLS',icon:'⚠',items:[
+{name:'Biohazard',art:`         ◢██◣
+       ◢██████◣
+      ██◣    ◢██
+     ██  ◢██◣  ██
+    ██  ██◣◢██  ██
+     ██  ◥██◤  ██
+      ██◤    ◥██
+       ◥██████◤
+     !! BIOHAZARD !!`},
+{name:'Radiation',art:`        ╱  ▲  ╲
+       ╱  ╱ ╲  ╲
+      ╱  ╱   ╲  ╲
+     ╱  ╱  ◉  ╲  ╲
+    ╱  ╱───────╲  ╲
+    ▼ ╱    ▼    ╲ ▼
+  !! RADIATION !!`},
+{name:'Toxic Zone',art:`  ╔══════════════════╗
+  ║   ☠ ☠ ☠ ☠ ☠ ☠   ║
+  ║   TOXIC HAZARD    ║
+  ║  CONTAMINATION    ║
+  ║  LEVEL: CRITICAL  ║
+  ║  DO NOT ENTER     ║
+  ║   ☠ ☠ ☠ ☠ ☠ ☠   ║
+  ╚══════════════════╝`},
+{name:'High Voltage',art:`       ╱╲
+      ╱╱╲╲
+     ╱╱  ╲╲
+    ╱╱ ⚡  ╲╲
+   ╱╱  ⚡⚡  ╲╲
+  ╱╱   ⚡    ╲╲
+ ══════════════
+  HIGH VOLTAGE`},
+{name:'Skull & Crossbones',art:`       ╭─────╮
+      ╱ ◉   ◉ ╲
+     │  ▓▓▓▓▓  │
+      ╲ ═════ ╱
+       ╰─────╯
+      ╳╳╳╳╳╳╳╳╳
+     !! DANGER !!`},
+{name:'Black IC Warning',art:`  ╔══════════════════════╗
+  ║ ▓  !! WARNING !!   ▓ ║
+  ║ ▓                  ▓ ║
+  ║ ▓  BLACK IC ACTIVE ▓ ║
+  ║ ▓  LETHAL COUNTER- ▓ ║
+  ║ ▓  INTRUSION SYS.  ▓ ║
+  ║ ▓  NEURAL DAMAGE   ▓ ║
+  ║ ▓  WILL OCCUR      ▓ ║
+  ╚══════════════════════╝`},
+{name:'Mana Void',art:`      ·  ✦  ·
+    ✦ ╱──────╲ ✦
+   ╱╱  VOID    ╲╲
+  │  ◈  NULL  ◈  │
+   ╲╲  ZONE    ╱╱
+    ✦ ╲──────╱ ✦
+   NO SPELLCASTING`},
+{name:'Quarantine Zone',art:`  ╔══════════════════════╗
+  ║  ╱!!╲  ╱!!╲  ╱!!╲   ║
+  ║ Q U A R A N T I N E  ║
+  ║     Z O N E          ║
+  ║  AUTHORIZATION       ║
+  ║  REQUIRED FOR ENTRY  ║
+  ╚══════════════════════╝`},
+{name:'Explosives',art:`         ,─.
+        ( ◉ )
+         '─'
+         /|\\
+        / | \\
+  ════════════════
+  !! EXPLOSIVES !!
+   BLAST RADIUS`},
+{name:'Restricted Area',art:`  ┏━━━━━━━━━━━━━━━━━━┓
+  ┃ ╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲ ┃
+  ┃  R E S T R I C T   ┃
+  ┃  E D   A R E A     ┃
+  ┃  SECURITY LEVEL:   ┃
+  ┃  ★ ★ ★ ★ ☆       ┃
+  ┃  AUTHORIZATION     ┃
+  ┃  REQUIRED          ┃
+  ┃ ╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲ ┃
+  ┗━━━━━━━━━━━━━━━━━━┛`},
+]},
+dividers:{label:'DIVIDERS & UI',icon:'═',items:[
+{name:'Double Line',art:`═══════════════════════════════════════`},
+{name:'Single Line',art:`───────────────────────────────────────`},
+{name:'Dashed Line',art:`- - - - - - - - - - - - - - - - - - - -`},
+{name:'Header Box',art:`╔═══════════════════════════════╗
+║       SECTION TITLE           ║
+╚═══════════════════════════════╝`},
+{name:'Data Box',art:`┌───────────────────────────────┐
+│   DATA ENTRY                  │
+└───────────────────────────────┘`},
+{name:'Warning Box',art:`╔═══════════════════════════════╗
+║  ⚠  WARNING: ___________     ║
+╠═══════════════════════════════╣
+║                               ║
+╚═══════════════════════════════╝`},
+{name:'Classified Banner',art:`▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+▓    [CLASSIFIED] TOP SECRET     ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓`},
+{name:'Stats Block (SR6)',art:`╔═══════════════════════════╗
+║ B  A  R  S  W  L  I  C   ║
+╠═══════════════════════════╣
+║ _  _  _  _  _  _  _  _   ║
+╠═══════════════════════════╣
+║ EDG: _  ESS: _._  M: _   ║
+╚═══════════════════════════╝`},
+{name:'Dossier Header',art:`┌──────────────────────────────┐
+│ ■ SUBJECT DOSSIER            │
+├──────────────────────────────┤
+│ NAME:                        │
+│ ALIAS:                       │
+│ METATYPE:                    │
+│ AFFILIATION:                 │
+│ THREAT LEVEL: ★ ☆ ☆ ☆ ☆    │
+└──────────────────────────────┘`},
+{name:'Transmission Block',art:`╔═══════════════════════════════╗
+║ ▸▸▸ INCOMING TRANSMISSION ◂◂◂ ║
+╠═══════════════════════════════╣
+║ FROM:                         ║
+║ ENCRYPT: ███████████          ║
+║                               ║
+║ ◂◂◂ END TRANSMISSION ▸▸▸     ║
+╚═══════════════════════════════╝`},
+]},
+locations:{label:'LOCATIONS',icon:'◎',items:[
+{name:'Arcology',art:`           /\\
+          /  \\
+         / ░░ \\
+        / ░░░░ \\
+       / ░░░░░░ \\
+      / ░░░░░░░░ \\
+     /________________\\
+  ════════════════════
+    CORPORATE ARCOLOGY`},
+{name:'Nightclub / Bar',art:`  ╔══════════════════╗
+  ║ ♪ ♫  ♪ ♫  ♪ ♫   ║
+  ║  N I G H T C L U B║
+  ║   ▓▓▓▓▓▓▓▓▓▓▓▓   ║
+  ║  ╱╱╱╱╱BAR╱╱╱╱╱   ║
+  ╚══════╡  ╞════════╝`},
+{name:'Safehouse',art:`      .───────────.
+     ╱  SAFEHOUSE  ╲
+    ╱───────────────╲
+    │ ░░  ░░    [☰] │
+    │      ╔════╗   │
+    │      ║SAFE║   │
+    │      ╚════╝   │
+    └──────╡  ╞─────┘`},
+{name:'Barrens District',art:`   ╱▓╲  ╱╲ ╱▓╲
+  ╱▓▓▓╲╱▓╲╱▓▓▓╲
+  │▓▓▓▓│▓▓│▓▓▓▓│
+  │░ ░ │░░│░ ░ │
+  ╧════╧══╧════╧
+  THE BARRENS`},
+{name:'Building',art:`       ┌─────────┐
+       │ ░░ ░░ ░░│
+       │ ░░ ░░ ░░│
+       │ ░░ ░░ ░░│
+       │ ░░ ░░ ░░│
+  ═════╧═╡  ╞═╧═════`},
+]},
+magic:{label:'MAGIC & ASTRAL',icon:'◈',items:[
+{name:'Summoning Circle',art:`       ·  ✦  ·
+     ✦ ╱──────╲ ✦
+    ╱ ╱ ╲    ╱ ╲ ╲
+   │ │ ◈ ╲╱ ◈  │ │
+   │ │  CIRCLE  │ │
+    ╲ ╲ ╱    ╲ ╱ ╱
+     ✦ ╲──────╱ ✦
+       ·  ✦  ·`},
+{name:'Mana Spiral',art:`      ◈ · · ◈
+    ·  ╱─────╲  ·
+   · ╱  ╱───╲  ╲ ·
+  ◈ │  │  ◈  │  │ ◈
+   · ╲  ╲───╱  ╱ ·
+    ·  ╲─────╱  ·
+    MANA FLOW: ACTIVE`},
+{name:'Spirit (Elemental)',art:`      ~ ~ ~ ~ ~
+     ~ ╭─────╮ ~
+    ~ ╱  ◈ ◈  ╲ ~
+    ~│   ≈≈≈   │~
+    ~ ╲  ~~~  ╱ ~
+     ~ ╰─────╯ ~
+    [SPIRIT: FORCE _]`},
+{name:'Ward Barrier',art:`  ╔═╗═══════════╔═╗
+  ║◈║  WARDED   ║◈║
+  ║ ║  AREA     ║ ║
+  ║◈║  FORCE: _ ║◈║
+  ╚═╝═══════════╚═╝`},
+{name:'Astral Rift',art:`    ╲ │ ╱ ─ ╲ │ ╱
+     ╲│╱       ╲│╱
+  ────  ASTRAL   ────
+     ╱|╲  RIFT  ╱|╲
+  ═══════════════════
+  BACKGROUND COUNT: ?`},
+{name:'Magical Lodge',art:`      ╱╲  ◈  ╱╲
+     ╱  ╲───╱  ╲
+    ╱  ◈ │ │ ◈  ╲
+   │─────┤ ├─────│
+   │ LODGE F: _  │
+    ╲  ◈ │ │ ◈  ╱
+      ╲╱  ◈  ╲╱`},
+]},
+};
+
+// ═══════════════════════════════════
+// ASCII PICKER LOGIC
+// ═══════════════════════════════════
+let _cpItems=[];
+function openAsciiPicker(){SFX.click();document.getElementById('asciiPickerOverlay').classList.add('active');document.getElementById('asciiSearch').value='';renderAsciiTabs();renderAsciiGrid();setTimeout(()=>document.getElementById('asciiSearch').focus(),50)}
+function closeAsciiPicker(){SFX.click();document.getElementById('asciiPickerOverlay').classList.remove('active')}
+function renderAsciiTabs(){document.getElementById('asciiTabs').innerHTML=Object.keys(ASCII_LIB).map(k=>{const c=ASCII_LIB[k];return`<div class="ascii-tab ${activeAsciiTab===k?'active':''}" onclick="selectAsciiTab('${k}')"><span class="tab-icon">${c.icon}</span><span>${c.label}</span><span class="tab-count">${c.items.length}</span></div>`}).join('')}
+function selectAsciiTab(k){SFX.click();activeAsciiTab=k;renderAsciiTabs();renderAsciiGrid()}
+function renderAsciiGrid(){
+    const s=document.getElementById('asciiSearch').value.toLowerCase(),g=document.getElementById('asciiGrid');
+    if(s){_cpItems=[];Object.values(ASCII_LIB).forEach(c=>c.items.forEach(i=>{if(i.name.toLowerCase().includes(s))_cpItems.push(i)}))}else{_cpItems=ASCII_LIB[activeAsciiTab]?.items||[]}
+    if(!_cpItems.length){g.innerHTML='<div style="padding:30px;text-align:center;opacity:0.4">No matching art</div>';return}
+    g.innerHTML=_cpItems.map((it,i)=>`<div class="ascii-card" onclick="insertAsciiArt(${i})"><div class="ascii-card-header"><span class="ascii-card-name">${escHtml(it.name)}</span><span class="ascii-card-insert">▸ INSERT</span></div><div class="ascii-card-preview">${escHtml(it.art)}</div></div>`).join('');
+}
+function insertAsciiArt(i){
+    const it=_cpItems[i];if(!it)return;const ta=document.getElementById('fieldContent');
+    const s=ta.selectionStart,e=ta.selectionEnd,b=ta.value.substring(0,s),a=ta.value.substring(e);
+    const pre=b.length>0&&!b.endsWith('\n')?'\n':'',suf=a.length>0&&!a.startsWith('\n')?'\n':'';
+    ta.value=b+pre+it.art+suf+a;ta.selectionStart=ta.selectionEnd=s+pre.length+it.art.length+suf.length;
+    SFX.insert();markUnsaved();updateContentMeta();closeAsciiPicker();toast(`Inserted: ${it.name}`);ta.focus();
+}
+document.getElementById('asciiPickerOverlay').addEventListener('click',e=>{if(e.target.id==='asciiPickerOverlay')closeAsciiPicker()});
+
+// ═══════════════════════════════════
+// ENTRY MANAGEMENT
+// ═══════════════════════════════════
+function newEntry(){
+    SFX.click();const entry={id:nextId++,category:'LOCATIONS',title:'',content:''};
+    entries.push(entry);selectedId=entry.id;markUnsaved();renderAll();showEditor(entry);
+    if(!isDesktop())closeSidebar();
+    document.getElementById('fieldTitle').focus();
+}
+function selectEntry(id){
+    SFX.click();saveFieldsToEntry(selectedId);selectedId=id;
+    const entry=entries.find(e=>e.id===id);if(entry)showEditor(entry);renderEntryList();
+    if(!isDesktop())closeSidebar();
+}
+function showEditor(entry){
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('editorFields').style.display='flex';
+    document.getElementById('toolbarActions').style.display='flex';
+    document.getElementById('editorLabel').textContent=`EDITING: ${entry.title||'(UNTITLED)'}`;
+    const cs=document.getElementById('fieldCategory'),cr=document.getElementById('customCatRow');
+    const dc=[...cs.options].map(o=>o.value).filter(v=>v!=='__custom__');
+    if(dc.includes(entry.category)){cs.value=entry.category;cr.classList.remove('visible')}
+    else{cs.value='__custom__';cr.classList.add('visible');document.getElementById('customCatInput').value=entry.category}
+    document.getElementById('fieldTitle').value=entry.title;
+    document.getElementById('fieldContent').value=entry.content;
+    updateContentMeta();
+}
+function saveFieldsToEntry(id){
+    if(!id)return;const entry=entries.find(e=>e.id===id);if(!entry)return;
+    let cat=document.getElementById('fieldCategory').value;
+    if(cat==='__custom__')cat=document.getElementById('customCatInput').value.trim().toUpperCase()||'MISC';
+    const title=document.getElementById('fieldTitle').value.trim(),content=document.getElementById('fieldContent').value.trim();
+    if(entry.category!==cat||entry.title!==title||entry.content!==content){entry.category=cat;entry.title=title;entry.content=content;markUnsaved()}
+}
+function saveCurrentEntry(){
+    saveFieldsToEntry(selectedId);const entry=entries.find(e=>e.id===selectedId);
+    if(entry){SFX.save();document.getElementById('editorLabel').textContent=`EDITING: ${entry.title||'(UNTITLED)'}`;toast(`Saved: ${entry.title||'(UNTITLED)'}`)}
+    renderAll();
+}
+function duplicateEntry(){
+    saveFieldsToEntry(selectedId);const src=entries.find(e=>e.id===selectedId);if(!src)return;SFX.click();
+    const clone={id:nextId++,category:src.category,title:src.title+' (copy)',content:src.content};
+    entries.push(clone);selectedId=clone.id;markUnsaved();renderAll();showEditor(clone);toast('Cloned','amber');
+}
+function confirmDeleteEntry(){
+    const entry=entries.find(e=>e.id===selectedId);if(!entry)return;
+    document.getElementById('deleteMsg').textContent=`Delete "${entry.title||'(UNTITLED)'}"?`;
+    document.getElementById('deleteDialog').classList.add('active');
+}
+function doDeleteEntry(){
+    SFX.del();entries=entries.filter(e=>e.id!==selectedId);closeDialog('deleteDialog');
+    selectedId=null;markUnsaved();renderAll();
+    document.getElementById('emptyState').style.display='';document.getElementById('editorFields').style.display='none';
+    document.getElementById('toolbarActions').style.display='none';document.getElementById('editorLabel').textContent='NO ENTRY SELECTED';
+    toast('Deleted','error');
+}
+
+// ═══════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════
+function renderAll(){renderFilters();renderEntryList();updateStats()}
+function renderFilters(){
+    const cats=new Set(entries.map(e=>e.category)),row=document.getElementById('filterRow');
+    let h=`<button class="filter-chip ${activeFilter==='ALL'?'active':''}" onclick="setFilter('ALL')">ALL</button>`;
+    [...cats].sort().forEach(c=>{h+=`<button class="filter-chip ${activeFilter===c?'active':''}" onclick="setFilter('${c}')">${c}</button>`});
+    row.innerHTML=h;
+}
+function setFilter(f){SFX.click();activeFilter=f;renderAll()}
+function renderEntryList(){
+    const s=document.getElementById('searchInput').value.toLowerCase(),list=document.getElementById('entryList');
+    let f=entries;
+    if(activeFilter!=='ALL')f=f.filter(e=>e.category===activeFilter);
+    if(s)f=f.filter(e=>e.title.toLowerCase().includes(s)||e.content.toLowerCase().includes(s)||e.category.toLowerCase().includes(s));
+    if(!f.length){list.innerHTML='<div style="padding:20px;text-align:center;opacity:0.3">No entries</div>';return}
+    list.innerHTML=f.map(e=>`<div class="entry-item ${e.id===selectedId?'selected':''}" onclick="selectEntry(${e.id})"><span class="cat-badge ${getCatClass(e.category)}">${e.category.substring(0,4)}</span><span class="entry-title-text">${escHtml(e.title||'(UNTITLED)')}</span></div>`).join('');
+}
+function getCatClass(c){return['LOCATIONS','CORPORATIONS','PEOPLE','MAGIC','TECH','HISTORY','FACTIONS','CONFIDENTIAL'].includes(c)?'cat-'+c:'cat-default'}
+function updateStats(){document.getElementById('statEntries').textContent=entries.length;document.getElementById('statCats').textContent=new Set(entries.map(e=>e.category)).size}
+function updateContentMeta(){const t=document.getElementById('fieldContent').value;document.getElementById('charCount').textContent=t.length+' chars';document.getElementById('wordCount').textContent=(t.trim()?t.trim().split(/\s+/).length:0)+' words'}
+
+// ═══════════════════════════════════
+// IMPORT / EXPORT
+// ═══════════════════════════════════
+function showImportDialog(){SFX.click();document.getElementById('importDialog').classList.add('active');setupDragDrop()}
+function setupDragDrop(){const z=document.getElementById('importZone');z.ondragover=e=>{e.preventDefault();z.classList.add('dragover')};z.ondragleave=()=>z.classList.remove('dragover');z.ondrop=e=>{e.preventDefault();z.classList.remove('dragover');if(e.dataTransfer.files.length)processImportFile(e.dataTransfer.files[0])}}
+function handleImportFile(e){if(e.target.files.length)processImportFile(e.target.files[0]);e.target.value=''}
+function processImportFile(file){
+    const reader=new FileReader();reader.onload=function(ev){
+        const raw=ev.target.result.trim(),name=file.name.toLowerCase();let content;
+        if(name.endsWith('.dat')||name.endsWith('.db')||name.endsWith('.bin')){
+            try{
+                // Use UTF-8 safe base64 decoding
+                content=xorCrypt(decodeURIComponent(escape(atob(raw))));
+            }catch(e){SFX.error();toast('Decrypt failed','error');return}
+        }else{content=raw}
+        if(!content.includes(':')||!content.includes('|')){SFX.error();toast('Invalid format','error');return}
+        parseImport(content);closeDialog('importDialog');SFX.load();toast(`Imported ${entries.length} entries`);
+    };reader.readAsText(file);
+}
+function parseImport(content){
+    entries=[];selectedId=null;
+    var chunks=content.split('\n\n'),merged=[];
+    chunks.forEach(function(c){c=c.trim();if(!c)return;var ci=c.indexOf(':'),pi=c.indexOf('|');var isNew=ci>0&&pi>ci&&/^[A-Za-z_ -]+$/.test(c.substring(0,ci).trim());if(isNew||merged.length===0){merged.push(c)}else if(merged.length>0){merged[merged.length-1]+='\n\n'+c}});
+    merged.forEach(function(b){b=b.trim();if(!b)return;const ci=b.indexOf(':');if(ci<0)return;const cat=b.substring(0,ci).trim(),rest=b.substring(ci+1),pi=rest.indexOf('|');if(pi<0)return;entries.push({id:nextId++,category:cat,title:rest.substring(0,pi).trim(),content:rest.substring(pi+1).trim()})});
+    renderAll();document.getElementById('emptyState').style.display='';document.getElementById('editorFields').style.display='none';document.getElementById('toolbarActions').style.display='none';document.getElementById('editorLabel').textContent='NO ENTRY SELECTED';
+}
+function entriesToTxt(){saveFieldsToEntry(selectedId);return entries.map(e=>`${e.category}:${e.title}|${e.content}`).join('\n\n')+'\n'}
+function exportTxt(){if(!entries.length){SFX.error();toast('No entries','error');return}SFX.save();downloadFile(entriesToTxt(),'database.txt','text/plain');toast('Exported .txt')}
+function exportDat(){
+    if(!entries.length){SFX.error();toast('No entries','error');return}
+    SFX.save();
+    var plaintext = entriesToTxt();
+    var encrypted = xorCrypt(plaintext);
+    // Use UTF-8 safe base64 encoding
+    var encoded = btoa(unescape(encodeURIComponent(encrypted)));
+    downloadFile(encoded,'database.dat','application/octet-stream');
+    toast('Exported .dat');
+}
+function downloadFile(c,f,m){const b=new Blob([c],{type:m}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=f;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},100)}
+
+// ═══════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════
+function closeDialog(id){document.getElementById(id).classList.remove('active')}
+function markUnsaved(){unsavedChanges=true;document.getElementById('unsavedIndicator').style.display=''}
+function toast(msg,type=''){let c=document.querySelector('.toast-container');if(!c){c=document.createElement('div');c.className='toast-container';document.body.appendChild(c)}const t=document.createElement('div');t.className='toast '+type;t.textContent='▸ '+msg;c.appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(()=>t.remove(),300)},2500)}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function onCategoryChange(){const s=document.getElementById('fieldCategory'),r=document.getElementById('customCatRow');if(s.value==='__custom__'){r.classList.add('visible');document.getElementById('customCatInput').focus()}else{r.classList.remove('visible')}markUnsaved()}
+
+document.getElementById('fieldContent').addEventListener('input',updateContentMeta);
+window.addEventListener('beforeunload',e=>{if(unsavedChanges&&entries.length>0){e.preventDefault();e.returnValue=''}});
+document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){
+        if(document.getElementById('imageDialog').classList.contains('active')){closeImageDialog();return}
+        if(document.getElementById('asciiPickerOverlay').classList.contains('active')){closeAsciiPicker();return}
+        if(document.getElementById('sidebar').classList.contains('open')&&!isDesktop()){closeSidebar();return}
+    }
+    if(document.getElementById('asciiPickerOverlay').classList.contains('active'))return;
+    if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();if(selectedId)saveCurrentEntry()}
+    if((e.ctrlKey||e.metaKey)&&e.key==='n'){e.preventDefault();newEntry()}
+});
+
+// ═══════════════════════════════════
+// IMAGE HANDLING
+// ═══════════════════════════════════
+var pendingImageData = null;
+var savedCursorPos = 0;
+
+function insertImage() {
+    if (!selectedId) {
+        SFX.error();
+        toast('Select an entry first', 'error');
+        return;
+    }
+    SFX.click();
+    // Save cursor position
+    var textarea = document.getElementById('fieldContent');
+    savedCursorPos = textarea.selectionStart;
+    // Reset dialog state
+    pendingImageData = null;
+    document.getElementById('imagePreviewContainer').style.display = 'none';
+    document.getElementById('insertImageBtn').style.display = 'none';
+    document.getElementById('imageDropZone').style.display = '';
+    document.getElementById('imageDialog').classList.add('active');
+    setupImageDragDrop();
+}
+
+function setupImageDragDrop() {
+    var zone = document.getElementById('imageDropZone');
+    zone.ondragover = function(e) { e.preventDefault(); zone.classList.add('dragover'); };
+    zone.ondragleave = function() { zone.classList.remove('dragover'); };
+    zone.ondrop = function(e) {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) processImageFile(e.dataTransfer.files[0]);
+    };
+}
+
+function handleImageFile(e) {
+    if (e.target.files.length) processImageFile(e.target.files[0]);
+    e.target.value = '';
+}
+
+function processImageFile(file) {
+    if (!file.type.startsWith('image/')) {
+        SFX.error();
+        toast('Not a valid image', 'error');
+        return;
+    }
+    
+    var maxSize = 2 * 1024 * 1024; // 2MB limit
+    if (file.size > maxSize) {
+        SFX.error();
+        toast('Image too large (max 2MB)', 'error');
+        return;
+    }
+    
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+        var base64 = ev.target.result;
+        pendingImageData = base64;
+        
+        // Show preview
+        var preview = document.getElementById('imagePreview');
+        preview.src = base64;
+        document.getElementById('imagePreviewContainer').style.display = '';
+        document.getElementById('insertImageBtn').style.display = '';
+        document.getElementById('imageDropZone').style.display = 'none';
+        
+        // Show size info
+        var img = new Image();
+        img.onload = function() {
+            document.getElementById('imageSizeInfo').textContent = img.width + ' x ' + img.height + ' px';
+        };
+        img.src = base64;
+        
+        var b64Size = Math.round(base64.length / 1024);
+        document.getElementById('imageB64Size').textContent = b64Size + ' KB encoded';
+        
+        SFX.load();
+    };
+    reader.readAsDataURL(file);
+}
+
+function doInsertImage() {
+    if (!pendingImageData) return;
+    
+    var textarea = document.getElementById('fieldContent');
+    var content = textarea.value;
+    var before = content.substring(0, savedCursorPos);
+    var after = content.substring(savedCursorPos);
+    
+    // Create image tag
+    var imageTag = '\n[IMG:' + pendingImageData + ']\n';
+    
+    // Insert at cursor position
+    textarea.value = before + imageTag + after;
+    
+    // Update cursor position
+    var newPos = savedCursorPos + imageTag.length;
+    textarea.setSelectionRange(newPos, newPos);
+    textarea.focus();
+    
+    // Mark changes
+    markUnsaved();
+    updateContentMeta();
+    
+    SFX.save();
+    toast('Image inserted');
+    closeImageDialog();
+}
+
+function closeImageDialog() {
+    document.getElementById('imageDialog').classList.remove('active');
+    pendingImageData = null;
+}
+
+renderAll();
+</script>
+</body>
+</html>
