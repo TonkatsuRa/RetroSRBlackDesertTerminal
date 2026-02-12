@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DATABASE FORGE // ENTRY EDITOR</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --phosphor: #20c20e;
+            --phosphor-dim: #0a3d08;
+            --phosphor-glow: #39ff14;
+            --amber: #ffb000;
+            --amber-dim: #4d3600;
+            --red: #ff3333;
+            --cyan: #00d4aa;
+            --magenta: #ff00ff;
+            --bg: #050805;
+            --panel-bg: rgba(5, 15, 5, 0.95);
+            --input-bg: rgba(0, 20, 0, 0.6);
+        }
+
+        html, body { height: 100%; overflow: hidden; background: var(--bg); }
+
+        body {
+            font-family: 'VT323', monospace;
+            color: var(--phosphor);
+            font-size: clamp(14px, 1.6vw, 18px);
+        }
+
+        /* CRT overlay */
+        .crt-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none; z-index: 9999;
+        }
+        .crt-overlay::before {
+            content: ""; position: absolute; inset: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0,0,0,0.06) 1px, rgba(0,0,0,0.06) 2px);
+        }
+        .crt-overlay::after {
+            content: ""; position: absolute; inset: 0;
+            background: radial-gradient(ellipse at center, transparent 0%, transparent 55%, rgba(0,0,0,0.18) 80%, rgba(0,0,0,0.45) 100%);
+        }
+        @keyframes crtBand { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
+        .crt-band {
+            position: fixed; top: 0; left: 0; right: 0; height: 120px;
+            background: linear-gradient(180deg, transparent, rgba(32,194,14,0.025), transparent);
+            animation: crtBand 8s linear infinite;
+            pointer-events: none; z-index: 9998;
+        }
+
+        /* Layout */
+        .app-shell {
+            height: 100%; display: flex; flex-direction: column;
+            padding: 12px; gap: 10px;
+        }
+
+        /* Header */
+        .header {
+            display: flex; align-items: center; justify-content: space-between;
+            border: 1px solid var(--phosphor-dim);
+            background: var(--panel-bg);
+            padding: 10px 18px;
+            flex-shrink: 0;
+            box-shadow: inset 0 0 40px rgba(32,194,14,0.04);
+        }
+        .header-title {
+            font-size: clamp(16px, 2.4vw, 26px);
+            color: var(--phosphor-glow);
+            text-shadow: 0 0 12px var(--phosphor), 0 0 25px var(--phosphor-dim);
+            letter-spacing: 3px;
+        }
+        .header-stats {
+            display: flex; gap: 20px; font-size: clamp(11px, 1.3vw, 14px); opacity: 0.7;
+        }
+        .stat-val { color: var(--amber); }
+
+        /* Main area */
+        .main-area {
+            flex: 1; display: flex; gap: 10px; min-height: 0;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: clamp(220px, 22vw, 320px);
+            border: 1px solid var(--phosphor-dim);
+            background: var(--panel-bg);
+            display: flex; flex-direction: column;
+            flex-shrink: 0;
+            box-shadow: inset 0 0 30px rgba(32,194,14,0.03);
+        }
+        .sidebar-header {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--phosphor-dim);
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(0,20,0,0.3);
+        }
+        .sidebar-title {
+            font-size: clamp(11px, 1.3vw, 14px);
+            color: var(--amber);
+            letter-spacing: 2px;
+        }
+        .filter-row {
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--phosphor-dim);
+            display: flex; gap: 6px; flex-wrap: wrap;
+        }
+        .filter-chip {
+            padding: 2px 8px;
+            border: 1px solid var(--phosphor-dim);
+            background: transparent;
+            color: var(--phosphor);
+            font-family: 'VT323', monospace;
+            font-size: clamp(10px, 1.1vw, 13px);
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .filter-chip:hover { border-color: var(--phosphor); background: rgba(32,194,14,0.1); }
+        .filter-chip.active {
+            background: rgba(32,194,14,0.2);
+            border-color: var(--phosphor);
+            color: var(--phosphor-glow);
+            text-shadow: 0 0 4px var(--phosphor);
+        }
+        .entry-list {
+            flex: 1; overflow-y: auto; padding: 4px 0;
+        }
+        .entry-list::-webkit-scrollbar { width: 6px; }
+        .entry-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        .entry-list::-webkit-scrollbar-thumb { background: var(--phosphor-dim); }
+        .entry-item {
+            padding: 8px 14px;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: all 0.1s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .entry-item:hover { background: rgba(32,194,14,0.08); }
+        .entry-item.selected {
+            background: rgba(32,194,14,0.15);
+            border-left-color: var(--phosphor);
+            color: var(--phosphor-glow);
+            text-shadow: 0 0 4px var(--phosphor);
+        }
+        .entry-item .cat-badge {
+            font-size: clamp(9px, 1vw, 11px);
+            padding: 1px 5px;
+            border: 1px solid;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .entry-item .entry-title-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: clamp(13px, 1.4vw, 16px);
+        }
+        .cat-LOCATIONS { color: var(--cyan); border-color: var(--cyan); }
+        .cat-CORPORATIONS { color: var(--amber); border-color: var(--amber); }
+        .cat-PEOPLE { color: var(--phosphor-glow); border-color: var(--phosphor-glow); }
+        .cat-MAGIC { color: #c77dff; border-color: #c77dff; }
+        .cat-TECH { color: #00b4d8; border-color: #00b4d8; }
+        .cat-HISTORY { color: #e5989b; border-color: #e5989b; }
+        .cat-FACTIONS { color: #f4a261; border-color: #f4a261; }
+        .cat-CONFIDENTIAL { color: var(--magenta); border-color: var(--magenta); }
+        .cat-default { color: var(--phosphor); border-color: var(--phosphor); }
+
+        .sidebar-footer {
+            padding: 6px 12px;
+            border-top: 1px solid var(--phosphor-dim);
+            display: flex; gap: 6px;
+        }
+
+        /* Editor panel */
+        .editor-panel {
+            flex: 1;
+            border: 1px solid var(--phosphor-dim);
+            background: var(--panel-bg);
+            display: flex; flex-direction: column;
+            box-shadow: inset 0 0 50px rgba(32,194,14,0.03);
+            min-width: 0;
+        }
+        .editor-toolbar {
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--phosphor-dim);
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(0,20,0,0.3);
+            flex-shrink: 0;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .toolbar-label {
+            font-size: clamp(11px, 1.3vw, 14px);
+            color: var(--amber); letter-spacing: 2px;
+        }
+        .toolbar-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        .editor-body {
+            flex: 1; display: flex; flex-direction: column; padding: 14px; gap: 12px;
+            overflow-y: auto; min-height: 0;
+        }
+        .editor-body::-webkit-scrollbar { width: 6px; }
+        .editor-body::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        .editor-body::-webkit-scrollbar-thumb { background: var(--phosphor-dim); }
+
+        .field-group { display: flex; flex-direction: column; gap: 4px; }
+        .field-row { display: flex; gap: 10px; }
+        .field-row .field-group { flex: 1; min-width: 0; }
+        .field-label {
+            font-size: clamp(11px, 1.2vw, 13px);
+            color: var(--cyan);
+            letter-spacing: 1px;
+            text-shadow: 0 0 4px rgba(0,212,170,0.3);
+        }
+
+        .field-input, .field-select, .field-textarea {
+            background: var(--input-bg);
+            border: 1px solid var(--phosphor-dim);
+            color: var(--phosphor);
+            font-family: 'VT323', monospace;
+            font-size: clamp(14px, 1.5vw, 17px);
+            padding: 8px 12px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+        .field-input:focus, .field-select:focus, .field-textarea:focus {
+            border-color: var(--phosphor);
+            box-shadow: 0 0 12px rgba(32,194,14,0.15), inset 0 0 12px rgba(32,194,14,0.05);
+        }
+        .field-select {
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%2320c20e' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 30px;
+        }
+        .field-select option { background: #0a150a; color: var(--phosphor); }
+
+        .field-textarea {
+            flex: 1;
+            resize: none;
+            line-height: 1.4;
+            min-height: 120px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 6px 14px;
+            border: 1px solid var(--phosphor-dim);
+            background: rgba(0,30,0,0.6);
+            color: var(--phosphor);
+            font-family: 'VT323', monospace;
+            font-size: clamp(12px, 1.3vw, 15px);
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+            letter-spacing: 1px;
+        }
+        .btn:hover {
+            background: rgba(32,194,14,0.15);
+            border-color: var(--phosphor);
+            box-shadow: 0 0 10px rgba(32,194,14,0.15);
+            text-shadow: 0 0 4px var(--phosphor);
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn.primary {
+            border-color: var(--cyan);
+            color: var(--cyan);
+            text-shadow: 0 0 4px rgba(0,212,170,0.3);
+        }
+        .btn.primary:hover {
+            background: rgba(0,212,170,0.15);
+            box-shadow: 0 0 12px rgba(0,212,170,0.2);
+        }
+        .btn.danger {
+            border-color: var(--red);
+            color: var(--red);
+        }
+        .btn.danger:hover {
+            background: rgba(255,51,51,0.15);
+            box-shadow: 0 0 10px rgba(255,51,51,0.2);
+        }
+        .btn.amber {
+            border-color: var(--amber);
+            color: var(--amber);
+        }
+        .btn.amber:hover {
+            background: rgba(255,176,0,0.15);
+            box-shadow: 0 0 10px rgba(255,176,0,0.2);
+        }
+        .btn.magenta {
+            border-color: var(--magenta);
+            color: var(--magenta);
+        }
+        .btn.magenta:hover {
+            background: rgba(255,0,255,0.12);
+            box-shadow: 0 0 10px rgba(255,0,255,0.2);
+        }
+        .btn.small { padding: 3px 8px; font-size: clamp(10px, 1.1vw, 13px); }
+
+        /* Empty state */
+        .empty-state {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            text-align: center; opacity: 0.4; gap: 12px;
+            padding: 20px;
+        }
+        .empty-state .ascii-art {
+            font-size: clamp(8px, 1vw, 12px);
+            line-height: 1.15;
+            white-space: pre;
+            color: var(--phosphor-dim);
+        }
+        .empty-state p { font-size: clamp(13px, 1.4vw, 16px); }
+
+        /* Toast */
+        .toast-container {
+            position: fixed; bottom: 20px; right: 20px; z-index: 5000;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .toast {
+            padding: 10px 18px;
+            border: 1px solid var(--phosphor);
+            background: rgba(5,20,5,0.95);
+            color: var(--phosphor-glow);
+            font-family: 'VT323', monospace;
+            font-size: 15px;
+            box-shadow: 0 0 20px rgba(32,194,14,0.2);
+            animation: toastIn 0.3s ease-out;
+            max-width: 350px;
+        }
+        .toast.error { border-color: var(--red); color: var(--red); box-shadow: 0 0 20px rgba(255,51,51,0.2); }
+        .toast.amber { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 20px rgba(255,176,0,0.2); }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Dialogs */
+        .dialog-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 6000;
+            justify-content: center; align-items: center;
+        }
+        .dialog-overlay.active { display: flex; }
+        .dialog-box {
+            border: 2px solid var(--amber);
+            background: rgba(5,15,5,0.98);
+            padding: 28px 36px;
+            max-width: 440px;
+            text-align: center;
+            box-shadow: 0 0 60px rgba(255,176,0,0.15);
+        }
+        .dialog-box h2 {
+            color: var(--amber);
+            font-size: clamp(16px, 2.2vw, 22px);
+            margin-bottom: 14px;
+            letter-spacing: 2px;
+        }
+        .dialog-box p { color: #888; margin-bottom: 18px; font-size: clamp(13px, 1.4vw, 16px); }
+        .dialog-actions { display: flex; gap: 12px; justify-content: center; }
+
+        .import-zone {
+            border: 2px dashed var(--phosphor-dim);
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 16px;
+        }
+        .import-zone:hover, .import-zone.dragover {
+            border-color: var(--phosphor);
+            background: rgba(32,194,14,0.05);
+        }
+
+        .custom-cat-row { display: none; margin-top: 4px; }
+        .custom-cat-row.visible { display: flex; gap: 6px; }
+
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .unsaved-dot {
+            display: inline-block; width: 8px; height: 8px;
+            border-radius: 50%; background: var(--amber);
+            box-shadow: 0 0 6px var(--amber);
+            animation: pulse 1.5s ease-in-out infinite;
+            margin-left: 8px;
+        }
+
+        .search-row {
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--phosphor-dim);
+        }
+        .search-input {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--phosphor-dim);
+            color: var(--phosphor);
+            font-family: 'VT323', monospace;
+            font-size: clamp(12px, 1.3vw, 15px);
+            padding: 5px 10px;
+            outline: none;
+        }
+        .search-input:focus {
+            border-color: var(--phosphor);
+            box-shadow: 0 0 8px rgba(32,194,14,0.12);
+        }
+        .search-input::placeholder { color: var(--phosphor-dim); }
+
+        .content-meta {
+            display: flex; justify-content: space-between;
+            font-size: clamp(10px, 1.1vw, 12px);
+            color: var(--phosphor-dim);
+            padding-top: 2px;
+        }
+        .content-toolbar {
+            display: flex; align-items: center; gap: 6px;
+            flex-wrap: wrap;
+        }
+        .content-toolbar .field-label { margin-right: auto; }
+
+        /* ===== ASCII ART PICKER ===== */
+        .ascii-picker-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.88);
+            z-index: 7000;
+            justify-content: center; align-items: center;
+            padding: 20px;
+        }
+        .ascii-picker-overlay.active { display: flex; }
+
+        .ascii-picker {
+            width: min(96vw, 920px);
+            max-height: 88vh;
+            border: 2px solid var(--cyan);
+            background: rgba(3, 10, 3, 0.98);
+            display: flex; flex-direction: column;
+            box-shadow: 0 0 80px rgba(0,212,170,0.15), inset 0 0 60px rgba(0,212,170,0.03);
+        }
+        .ascii-picker-header {
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--phosphor-dim);
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(0,30,20,0.4);
+            flex-shrink: 0;
+        }
+        .ascii-picker-header h2 {
+            color: var(--cyan);
+            font-size: clamp(15px, 2vw, 22px);
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px rgba(0,212,170,0.4);
+        }
+        .ascii-picker-body { display: flex; flex: 1; min-height: 0; }
+
+        .ascii-tabs {
+            width: 170px;
+            border-right: 1px solid var(--phosphor-dim);
+            overflow-y: auto;
+            flex-shrink: 0;
+            background: rgba(0,10,5,0.5);
+        }
+        .ascii-tabs::-webkit-scrollbar { width: 4px; }
+        .ascii-tabs::-webkit-scrollbar-thumb { background: var(--phosphor-dim); }
+
+        .ascii-tab {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: all 0.12s;
+            font-size: clamp(12px, 1.3vw, 15px);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .ascii-tab:hover { background: rgba(0,212,170,0.08); }
+        .ascii-tab.active {
+            background: rgba(0,212,170,0.12);
+            border-left-color: var(--cyan);
+            color: var(--cyan);
+            text-shadow: 0 0 5px rgba(0,212,170,0.4);
+        }
+        .ascii-tab .tab-icon { font-size: 1.1em; width: 20px; text-align: center; flex-shrink: 0; }
+        .ascii-tab .tab-count {
+            margin-left: auto; font-size: 0.75em; opacity: 0.4;
+        }
+
+        .ascii-grid-area {
+            flex: 1; overflow-y: auto; padding: 12px;
+            display: flex; flex-direction: column; gap: 10px;
+            min-width: 0;
+        }
+        .ascii-grid-area::-webkit-scrollbar { width: 6px; }
+        .ascii-grid-area::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        .ascii-grid-area::-webkit-scrollbar-thumb { background: var(--phosphor-dim); }
+
+        .ascii-card {
+            border: 1px solid var(--phosphor-dim);
+            background: rgba(0,15,5,0.6);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ascii-card:hover {
+            border-color: var(--cyan);
+            background: rgba(0,212,170,0.06);
+            box-shadow: 0 0 15px rgba(0,212,170,0.1);
+        }
+        .ascii-card-header {
+            padding: 6px 12px;
+            border-bottom: 1px solid var(--phosphor-dim);
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(0,20,10,0.3);
+        }
+        .ascii-card-name {
+            color: var(--amber);
+            font-size: clamp(11px, 1.2vw, 14px);
+            letter-spacing: 1px;
+        }
+        .ascii-card-insert {
+            color: var(--cyan);
+            font-size: clamp(10px, 1.1vw, 12px);
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .ascii-card:hover .ascii-card-insert { opacity: 1; }
+
+        .ascii-card-preview {
+            padding: 10px 14px;
+            font-family: 'VT323', monospace;
+            font-size: clamp(9px, 0.95vw, 13px);
+            line-height: 1.15;
+            white-space: pre;
+            overflow-x: auto;
+            color: var(--phosphor);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .ascii-card-preview::-webkit-scrollbar { height: 4px; width: 4px; }
+        .ascii-card-preview::-webkit-scrollbar-thumb { background: var(--phosphor-dim); }
+
+        .ascii-search-row {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--phosphor-dim);
+            flex-shrink: 0;
+        }
+        .ascii-search-input {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--phosphor-dim);
+            color: var(--phosphor);
+            font-family: 'VT323', monospace;
+            font-size: clamp(12px, 1.3vw, 15px);
+            padding: 6px 10px;
+            outline: none;
+        }
+        .ascii-search-input:focus {
+            border-color: var(--cyan);
+            box-shadow: 0 0 8px rgba(0,212,170,0.12);
+        }
+        .ascii-search-input::placeholder { color: var(--phosphor-dim); }
+
+        @media (max-width: 700px) {
+            .main-area { flex-direction: column; }
+            .sidebar { width: 100%; max-height: 35vh; }
+            .header-stats { display: none; }
+            .field-row { flex-direction: column; }
+        }
+        @media (max-width: 600px) {
+            .ascii-tabs { width: 52px; }
+            .ascii-tab span:not(.tab-icon) { display: none; }
+            .ascii-tab .tab-icon { margin: 0 auto; }
+        }
+    </style>
+</head>
+<body>
+    <div class="crt-overlay"></div>
+    <div class="crt-band"></div>
+
+    <div class="app-shell">
+        <div class="header">
+            <div class="header-title">◈ DATABASE FORGE <span style="font-size:0.6em;opacity:0.5;">v2.1</span></div>
+            <div class="header-stats">
+                <span>ENTRIES: <span class="stat-val" id="statEntries">0</span></span>
+                <span>CATEGORIES: <span class="stat-val" id="statCats">0</span></span>
+                <span id="unsavedIndicator" style="display:none">UNSAVED <span class="unsaved-dot"></span></span>
+            </div>
+        </div>
+
+        <div class="main-area">
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <span class="sidebar-title">ENTRY INDEX</span>
+                    <button class="btn small primary" onclick="newEntry()" title="New Entry">+ NEW</button>
+                </div>
+                <div class="search-row">
+                    <input class="search-input" id="searchInput" type="text" placeholder="▸ SEARCH ENTRIES..." oninput="renderEntryList()">
+                </div>
+                <div class="filter-row" id="filterRow"></div>
+                <div class="entry-list" id="entryList"></div>
+                <div class="sidebar-footer">
+                    <button class="btn small amber" onclick="showImportDialog()" title="Import Database">⬆ IMPORT</button>
+                    <button class="btn small" onclick="exportTxt()" title="Export as .txt">⬇ TXT</button>
+                    <button class="btn small primary" onclick="exportDat()" title="Export encrypted .dat">⬇ DAT</button>
+                </div>
+            </div>
+
+            <div class="editor-panel">
+                <div class="editor-toolbar">
+                    <span class="toolbar-label" id="editorLabel">NO ENTRY SELECTED</span>
+                    <div class="toolbar-actions" id="toolbarActions" style="display:none">
+                        <button class="btn primary" onclick="saveCurrentEntry()">✓ SAVE</button>
+                        <button class="btn" onclick="duplicateEntry()">⊕ CLONE</button>
+                        <button class="btn danger" onclick="confirmDeleteEntry()">✕ DELETE</button>
+                    </div>
+                </div>
+                <div class="editor-body" id="editorBody">
+                    <div class="empty-state" id="emptyState">
+                        <div class="ascii-art">
+    ╔══════════════════════════════════╗
+    ║                                  ║
+    ║    ▄▀▀▀▄  DATABASE  ▄▀▀▀▄       ║
+    ║    █   █   FORGE    █   █       ║
+    ║    ▀▄▄▄▀  EDITOR    ▀▄▄▄▀       ║
+    ║                                  ║
+    ╠══════════════════════════════════╣
+    ║  [+ NEW]    Create an entry     ║
+    ║  [⬆ IMPORT] Load a database    ║
+    ║  [⬇ TXT]   Export raw text     ║
+    ║  [⬇ DAT]   Export encrypted    ║
+    ║  [◈ ART]   Insert ASCII art    ║
+    ╚══════════════════════════════════╝</div>
+                        <p>Select an entry or create a new one</p>
+                    </div>
+                    <div id="editorFields" style="display:none; flex:1; display:none; flex-direction:column; gap:12px;">
+                        <div class="field-row">
+                            <div class="field-group" style="flex:0 0 auto; min-width:140px;">
+                                <label class="field-label">CATEGORY</label>
+                                <select class="field-select" id="fieldCategory" onchange="onCategoryChange()">
+                                    <option value="LOCATIONS">LOCATIONS</option>
+                                    <option value="CORPORATIONS">CORPORATIONS</option>
+                                    <option value="PEOPLE">PEOPLE</option>
+                                    <option value="MAGIC">MAGIC</option>
+                                    <option value="TECH">TECH</option>
+                                    <option value="HISTORY">HISTORY</option>
+                                    <option value="FACTIONS">FACTIONS</option>
+                                    <option value="CONFIDENTIAL">CONFIDENTIAL</option>
+                                    <option value="__custom__">+ CUSTOM...</option>
+                                </select>
+                                <div class="custom-cat-row" id="customCatRow">
+                                    <input class="field-input" id="customCatInput" placeholder="TYPE NAME..." style="text-transform:uppercase">
+                                </div>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">TITLE</label>
+                                <input class="field-input" id="fieldTitle" type="text" placeholder="Entry title..." autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="field-group" style="flex:1; display:flex; flex-direction:column;">
+                            <div class="content-toolbar">
+                                <label class="field-label">CONTENT</label>
+                                <button class="btn small magenta" onclick="openAsciiPicker()" title="Insert ASCII Art">◈ ASCII ART</button>
+                            </div>
+                            <textarea class="field-textarea" id="fieldContent" placeholder="Write entry content here..." style="flex:1;"></textarea>
+                            <div class="content-meta">
+                                <span id="charCount">0 chars</span>
+                                <span id="wordCount">0 words</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Dialog -->
+    <div class="dialog-overlay" id="deleteDialog">
+        <div class="dialog-box">
+            <h2>⚠ CONFIRM DELETION</h2>
+            <p id="deleteMsg">Permanently remove this entry?</p>
+            <div class="dialog-actions">
+                <button class="btn danger" onclick="doDeleteEntry()">DELETE</button>
+                <button class="btn" onclick="closeDialog('deleteDialog')">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Dialog -->
+    <div class="dialog-overlay" id="importDialog">
+        <div class="dialog-box" style="max-width:500px;">
+            <h2>⬆ IMPORT DATABASE</h2>
+            <p>Load a .txt (raw) or .dat (encrypted) database file</p>
+            <div class="import-zone" id="importZone" onclick="document.getElementById('importFileInput').click()">
+                <p style="color:var(--phosphor);font-size:1.3em;">DROP FILE HERE</p>
+                <p style="color:var(--phosphor-dim);font-size:0.85em;margin-top:6px;">or click to browse</p>
+            </div>
+            <input type="file" id="importFileInput" accept=".txt,.dat,.db,.bin" style="display:none" onchange="handleImportFile(event)">
+            <div class="dialog-actions">
+                <button class="btn" onclick="closeDialog('importDialog')">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ASCII Art Picker -->
+    <div class="ascii-picker-overlay" id="asciiPickerOverlay">
+        <div class="ascii-picker">
+            <div class="ascii-picker-header">
+                <h2>◈ ASCII ART LIBRARY</h2>
+                <button class="btn small" onclick="closeAsciiPicker()">✕ CLOSE [ESC]</button>
+            </div>
+            <div class="ascii-search-row">
+                <input class="ascii-search-input" id="asciiSearch" type="text" placeholder="▸ SEARCH ALL ART..." oninput="renderAsciiGrid()">
+            </div>
+            <div class="ascii-picker-body">
+                <div class="ascii-tabs" id="asciiTabs"></div>
+                <div class="ascii-grid-area" id="asciiGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // =========================================
+    // AUDIO
+    // =========================================
+    const SFX = {
+        ctx: null,
+        init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+        play(freq, type, dur, vol = 0.06) {
+            if (!this.ctx) return;
+            const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+            o.connect(g); g.connect(this.ctx.destination);
+            o.frequency.value = freq; o.type = type;
+            g.gain.setValueAtTime(vol, this.ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+            o.start(); o.stop(this.ctx.currentTime + dur);
+        },
+        click() { this.play(800, 'square', 0.03, 0.03); },
+        save() { this.play(440,'sine',0.1,0.06); setTimeout(()=>this.play(660,'sine',0.12,0.06),80); setTimeout(()=>this.play(880,'sine',0.15,0.05),160); },
+        del() { this.play(220,'sawtooth',0.15,0.05); setTimeout(()=>this.play(110,'sawtooth',0.2,0.04),100); },
+        error() { this.play(150, 'square', 0.2, 0.06); },
+        load() { [330,440,550,660].forEach((f,i)=>setTimeout(()=>this.play(f,'sine',0.1,0.04),i*60)); },
+        insert() { this.play(600,'sine',0.06,0.04); setTimeout(()=>this.play(900,'sine',0.08,0.04),50); }
+    };
+    document.addEventListener('click', () => SFX.init(), { once: true });
+
+    // =========================================
+    // STATE
+    // =========================================
+    let entries = [], selectedId = null, unsavedChanges = false, activeFilter = 'ALL', nextId = 1, activeAsciiTab = 'corps';
+    const ENCRYPTION_KEY = 'Shelby';
+    function xorCrypt(text) { let r=''; for(let i=0;i<text.length;i++) r+=String.fromCharCode(text.charCodeAt(i)^ENCRYPTION_KEY.charCodeAt(i%ENCRYPTION_KEY.length)); return r; }
+
+    // =========================================
+    // ASCII ART LIBRARY
+    // =========================================
+    const ASCII_LIB = {
+        corps: { label: 'CORPORATIONS', icon: '◆', items: [
+            { name: 'Ares Macrotechnology', art:
+`    ╔═══════════════════════╗
+    ║  ▄▄▄  ██████ ████████ ║
+    ║ █   █ █    █ █        ║
+    ║ █▄▄▄█ ██████ ████████ ║
+    ║ █   █ █   █  █        ║
+    ║ █   █ █    █ ████████ ║
+    ║   ARES MACROTECHNOLOGY ║
+    ║   "Making the World   ║
+    ║      Safer"           ║
+    ╚═══════════════════════╝` },
+            { name: 'Aztechnology', art:
+`        /\\
+       /  \\
+      / ◈◈ \\
+     / ◈◈◈◈ \\
+    /  ◈◈◈◈  \\
+   /  ◈ /\\ ◈  \\
+  / ◈◈ /  \\ ◈◈ \\
+ /____/____\\____\\
+ ╔══════════════╗
+ ║ AZTECHNOLOGY ║
+ ║  Más Vida.   ║
+ ╚══════════════╝` },
+            { name: 'Renraku Computer Systems', art:
+`   ┌─────────────────────┐
+   │  ╱╲    ╱╲    ╱╲     │
+   │ ╱  ╲  ╱  ╲  ╱  ╲    │
+   │╱    ╲╱    ╲╱    ╲   │
+   │ R E N R A K U       │
+   │ Computer Systems    │
+   │ ─────────────────── │
+   │ "Grid Overwatch"    │
+   └─────────────────────┘` },
+            { name: 'Saeder-Krupp Heavy Industries', art:
+`       ,     /
+      / \\~~~/
+     {  (◉)  }
+      \\  ~ /\\
+       \\  / |\\
+     ___\\/__|_\\__
+    ╔════════════════╗
+    ║  SAEDER-KRUPP  ║
+    ║ Heavy Industry ║
+    ║"Wir Machen Es" ║
+    ╚════════════════╝` },
+            { name: 'NeoNET', art:
+`   ┌──────────────────┐
+   │ ╲  ╱ ╲  ╱ ╲  ╱   │
+   │  ╲╱   ╲╱   ╲╱    │
+   │  ╱╲   ╱╲   ╱╲    │
+   │ ╱  ╲ ╱  ╲ ╱  ╲   │
+   │   N E O N E T    │
+   │  Global Matrix   │
+   │   Solutions      │
+   └──────────────────┘` },
+            { name: 'Evo Corporation', art:
+`   ┌───────────────────┐
+   │   ╭─╮  ╭─╮  ╭─╮   │
+   │   │E│  │V│  │O│   │
+   │   ╰─╯  ╰─╯  ╰─╯   │
+   │  ═══════════════   │
+   │  EVO CORPORATION   │
+   │  "Changing Life"   │
+   └───────────────────┘` },
+            { name: 'Horizon Group', art:
+`      ───────────
+     ╱           ╲
+    │  ☀ HORIZON  │
+    │    GROUP    │
+     ╲           ╱
+      ───────────
+   "We Know What
+    You Think"` },
+            { name: 'Mitsuhama (MCT)', art:
+`   ╔═══════════════════╗
+   ║  ┌──┐  ┌──┐  ┌──┐ ║
+   ║  │▓▓│──│▓▓│──│▓▓│ ║
+   ║  └──┘  └──┘  └──┘ ║
+   ║   MITSUHAMA COMP   ║
+   ║    TECHNOLOGY      ║
+   ║  "The Future Is   ║
+   ║     Digital"      ║
+   ╚═══════════════════╝` },
+            { name: 'Wuxing Incorporated', art:
+`       ╱╲
+      ╱  ╲
+     ╱ ☯  ╲
+    ╱  WX   ╲
+   ╱─────────╲
+   ╔══════════════╗
+   ║    WUXING     ║
+   ║ Incorporated ║
+   ║  "Harmony    ║
+   ║   in Profit" ║
+   ╚══════════════╝` },
+            { name: 'Lone Star Security', art:
+`      .─────.
+     ╱   ★   ╲
+    │  L O N E │
+    │  S T A R │
+     ╲       ╱
+      '─────'
+  Security Services
+ "To Protect & Profit"` },
+            { name: 'DocWagon', art:
+`   ╔═══════════════╗
+   ║   ┌───────┐   ║
+   ║   │  ╋    │   ║
+   ║   │ ╋╋╋   │   ║
+   ║   │  ╋    │   ║
+   ║   └───────┘   ║
+   ║   DOC WAGON   ║
+   ║  "We Save     ║
+   ║   Your Life.  ║
+   ║  (If You Pay)"║
+   ╚═══════════════╝` },
+            { name: 'Knight Errant', art:
+`     ┌────────────────┐
+     │    /|           │
+     │   / |  K.E.     │
+     │  /  | KNIGHT    │
+     │ /   | ERRANT    │
+     │/ ◆  | Security  │
+     │\\   |           │
+     │ \\  |  "Serve & │
+     │  \\ |  Protect" │
+     └────────────────┘` },
+            { name: 'Shiawase Corporation', art:
+`   ╔═══════════════════╗
+   ║  ╱╲      ╱╲       ║
+   ║ ╱╱╲╲    ╱╱╲╲      ║
+   ║╱╱  ╲╲  ╱╱  ╲╲     ║
+   ║  SHIAWASE CORP     ║
+   ║  ─────────────     ║
+   ║  "Nurturing the   ║
+   ║     Future"        ║
+   ╚═══════════════════╝` },
+        ]},
+        items: { label: 'GEAR & ITEMS', icon: '⬡', items: [
+            { name: 'Credstick', art:
+`  ╔════════════════════════╗
+  ║ ▓▓▓ CERTIFIED ▓▓▓     ║
+  ║                        ║
+  ║  ████ ████ ████ ████   ║
+  ║                        ║
+  ║  CRED: ¥¥¥,¥¥¥.¥¥     ║
+  ║  ══════════════════    ║
+  ║  ZURICH ORBITAL BANK   ║
+  ╚════════════════════════╝` },
+            { name: 'Commlink', art:
+`  ┌──────────────────┐
+  │ ╔══════════════╗  │
+  │ ║  ☰ 14:07     ║  │
+  │ ║              ║  │
+  │ ║   ◉ ACTIVE   ║  │
+  │ ║   ↑ 47.2Mb   ║  │
+  │ ║   ▓▓▓▓▓░░░   ║  │
+  │ ╚══════════════╝  │
+  │    [  ◯  ]        │
+  └──────────────────┘
+    HERMES IKON` },
+            { name: 'Datajack', art:
+`      ┌──────┐
+     ╱ ○○○○○ ╲
+    │ ┌──────┐ │
+    │ │▓▓▓▓▓▓│ │
+    │ │ JACK │ │
+    │ └──────┘ │
+     ╲________╱
+    DATAJACK v3.1
+    [NEURAL I/O]` },
+            { name: 'Nuyen Bundle (Payday)', art:
+`      ╔════════╗
+     ╔║ ¥50000 ║
+    ╔║╚════════╝
+   ╔║╚════════╝
+  ╔║╚════════╝
+  ║╚════════╝
+  ╚════════╝
+ ≡≡≡≡≡≡≡≡≡≡≡
+ PAYDAY, CHUMMER!` },
+            { name: 'Ares Predator V', art:
+`         _______
+        /      /|
+  ─────/──────/ │
+  │ ▓▓▓▓▓▓▓ │  │
+  │ ═══════  │  │
+  │   ARES   │ /
+  │PREDATOR V│/
+  └──────────┘
+  Heavy Pistol | 8P` },
+            { name: 'Medkit', art:
+`  ╔══════════════╗
+  ║  ┌────────┐  ║
+  ║  │   ╋    │  ║
+  ║  │  ╋╋╋   │  ║
+  ║  │   ╋    │  ║
+  ║  └────────┘  ║
+  ║  MEDKIT R-6  ║
+  ║  Savior Adv. ║
+  ╚══════════════╝` },
+            { name: 'BTL Chip', art:
+`    ┌─────────────┐
+    │ ╱╱╱╱╱╱╱╱╱╱  │
+    │ ║ BTL-CHIP ║ │
+    │ ║ ████████ ║ │
+    │ ║ DREAMCHP ║ │
+    │ ╱╱╱╱╱╱╱╱╱╱  │
+    └──────┬──────┘
+           │
+    !! ILLEGAL !!` },
+            { name: 'Stim Patch', art:
+`  ╭──────────────╮
+  │ ◎ STIM PATCH │
+  │ ════════════ │
+  │ R6 COMBAT    │
+  │ ▓▓▓▓▓▓▓▓▓▓  │
+  │ APPLY TO SKIN│
+  ╰──────────────╯` },
+            { name: 'Fake SIN', art:
+`  ╔══════════════════════╗
+  ║ UCAS SYSTEM ID NEXUS ║
+  ╠══════════════════════╣
+  ║ ┌────┐               ║
+  ║ │ ID │ NAME:_______  ║
+  ║ │FOTO│ SIN:________  ║
+  ║ └────┘ CLASS: ★★★★  ║
+  ║ VALID [■■■■■■■■■■]  ║
+  ╚══════════════════════╝
+     RATING 4 FAKE` },
+            { name: 'Cyberdeck', art:
+`  ┌─────────────────────┐
+  │ ┌─┐┌─┐┌─┐┌─┐┌─┐┌─┐ │
+  │ └─┘└─┘└─┘└─┘└─┘└─┘ │
+  │ ╔═════════════════╗  │
+  │ ║ MATRIX: ONLINE  ║  │
+  │ ║ IC STATUS: ░░░  ║  │
+  │ ╚═════════════════╝  │
+  │  █ █ █ █ █ █ █ █ █  │
+  └─────────────────────┘
+   ERIKA ELITE` },
+            { name: 'Trauma Patch', art:
+`  ╭──────────────╮
+  │ ╋ TRAUMA      │
+  │   PATCH       │
+  │ ════════════ │
+  │ R6 EMERGENCY │
+  │ ▓▓▓▓▓▓▓▓▓▓  │
+  │ PEEL & APPLY │
+  ╰──────────────╯` },
+            { name: 'Magical Focus', art:
+`        ✦
+       ╱|╲
+      ╱ | ╲
+     ◈──◆──◈
+      ╲ | ╱
+       ╲|╱
+        ✦
+   POWER FOCUS
+   Force: ____` },
+        ]},
+        characters: { label: 'CHARACTERS', icon: '☺', items: [
+            { name: 'Street Samurai', art:
+`       ╭───╮
+       │◉ ◉│
+       │ ▄ │
+       ╰┬─┬╯
+    ╔═══╧══╧═══╗
+    ║ ▓▓▓▓▓▓▓▓ ║
+    ║ ╔══════╗ ║
+    ║ ║CHROME║ ║
+    ║ ╚══════╝ ║
+    ╚════╤═╤═══╝
+        ┌┘ └┐
+        │   │
+    STREET SAMURAI` },
+            { name: 'Ork', art:
+`       ╭─────╮
+       │ ◣ ◢ │
+       │╱▓▓▓╲│
+       │ ▼▼▼ │
+       ╰──┬──╯
+       ╔══╧══╗
+       ║ ORK ║
+       ║TUSKS║
+       ╚══╤══╝
+        ╱   ╲
+       ╱     ╲
+      ◆       ◆` },
+            { name: 'Elf Decker', art:
+`       ╭──╮
+      ╱│◉◉│╲
+     ╱ │▁▁│ ╲
+     ╲  ╰╯  ╱
+      ╲────╱
+    ┌──────────┐
+    │ ▓▓▓▓▓▓▓▓ │
+    │ ELF      │
+    │ DECKER   │
+    └────┬─────┘
+        ┌┴┐
+       ╱  ╲
+    MATRIX COWBOY` },
+            { name: 'Troll', art:
+`     ╭─────────╮
+     │  ◣   ◢  │
+     │ ┌─────┐ │
+     │ │▓▓▓▓▓│ │
+     │ └──▼──┘ │
+   ╔═╧═════════╧═╗
+   ║   T R O L L  ║
+   ║  ▓▓▓▓▓▓▓▓▓  ║
+   ╚══════╤═══════╝
+       ╱█████╲
+      ╱███████╲
+    [BODY: 10+]` },
+            { name: 'Dwarf Rigger', art:
+`       ╭───╮
+       │⊙ ⊙│
+       │═▄═│
+       ╰─┬─╯
+      ╔══╧══╗
+      ║ RIG ║
+      ║CTRL ║
+      ╚══╤══╝
+        ╱╲
+       █  █
+   DWARF RIGGER
+   [JUMPED IN]` },
+            { name: 'Mage (Hermetic)', art:
+`         ✦
+        ╱|╲
+       ╱ │ ╲
+      ╭──┴──╮
+      │ ◈  ◈│
+      │  ▽  │
+      ╰──┬──╯
+    ╔════╧════╗
+    ║ ◈ MAGE ◈║
+    ║ HERMETIC ║
+    ╚════╤════╝
+      ╱    ╲
+     ╱  ◇◇  ╲
+   AWAKENED` },
+            { name: 'Shaman', art:
+`      ╱╲  ╱╲
+     ╱◈◈╲╱◈◈╲
+     ╲  TOTEM ╱
+      ╲─────╱
+       ╭───╮
+       │⊕ ⊕│
+       │ ~ │
+       ╰─┬─╯
+      ╔══╧══╗
+      ║SHAMN║
+      ╚══╤══╝
+     [SPIRIT
+      BOUND]` },
+            { name: 'Technomancer', art:
+`      ╭─·───·─╮
+      │ ☊   ☊ │
+      │  ▓▓▓  │
+      ╰──┬┬──╯
+    ┌─────┘└─────┐
+    │ ░░░░░░░░░░ │
+    │ TECHNO     │
+    │  MANCER    │
+    │ ░░░░░░░░░░ │
+    └─────┬──────┘
+     [NO CYBERWARE]
+     [MATRIX NATIVE]` },
+            { name: 'Mr. Johnson (Suit)', art:
+`       ╭───╮
+       │─ ─│
+       │ ▪ │
+       ╰─┬─╯
+    ╔════╧════╗
+    ║ █ SUIT █║
+    ║ ═══════ ║
+    ║  CORPO  ║
+    ╚════╤════╝
+       ┌┘└┐
+       │  │
+   MR. JOHNSON` },
+            { name: 'Great Dragon', art:
+`          /\\    /\\
+         /  \\__/  \\
+   ─────/ (◉)(◉)   \\─────
+  │     \\ ~~<▼>~~ /      │
+  │      \\  ╱╲  /        │
+  │    ╱╲╱\\╱╱╲╲╱╲╱╲      │
+  │   ╱╱╱ DRAGON  ╲╲╲    │
+  │  ╱   ╱╲    ╱╲   ╲   │
+  └──────────────────────┘
+      [GREAT DRAGON]` },
+            { name: 'Human (Generic)', art:
+`       ╭───╮
+       │° °│
+       │ ▫ │
+       ╰─┬─╯
+      ╔══╧══╗
+      ║     ║
+      ║HUMAN║
+      ╚══╤══╝
+       ┌─┘└─┐
+       │    │` },
+        ]},
+        hazards: { label: 'HAZARD SYMBOLS', icon: '⚠', items: [
+            { name: 'Biohazard', art:
+`         ◢██◣
+       ◢██████◣
+      ██◣    ◢██
+     ██  ◢██◣  ██
+    ██  ██◣◢██  ██
+    ██  ██████  ██
+     ██  ◥██◤  ██
+      ██◤    ◥██
+       ◥██████◤
+         ◥██◤
+     !! BIOHAZARD !!` },
+            { name: 'Radiation', art:
+`        ╱  ▲  ╲
+       ╱  ╱ ╲  ╲
+      ╱  ╱   ╲  ╲
+     ╱  ╱  ◉  ╲  ╲
+    ╱  ╱───────╲  ╲
+    ▼ ╱    ▼    ╲ ▼
+     ╱           ╲
+  !! RADIATION !!` },
+            { name: 'Toxic Zone', art:
+`  ╔══════════════════╗
+  ║   ☠ ☠ ☠ ☠ ☠ ☠   ║
+  ║ ═════════════════ ║
+  ║   TOXIC HAZARD    ║
+  ║  CONTAMINATION    ║
+  ║  LEVEL: CRITICAL  ║
+  ║  DO NOT ENTER     ║
+  ║  WITHOUT CHEM     ║
+  ║  SEAL ARMOR       ║
+  ║   ☠ ☠ ☠ ☠ ☠ ☠   ║
+  ╚══════════════════╝` },
+            { name: 'High Voltage', art:
+`       ╱╲
+      ╱╱╲╲
+     ╱╱  ╲╲
+    ╱╱ ⚡  ╲╲
+   ╱╱  ⚡⚡  ╲╲
+  ╱╱   ⚡    ╲╲
+ ╱╱    ⚡⚡   ╲╲
+ ══════════════
+  HIGH VOLTAGE
+  DANGER-DEATH` },
+            { name: 'Skull & Crossbones', art:
+`       ╭─────╮
+      ╱ ◉   ◉ ╲
+     │  ▓▓▓▓▓  │
+     │   ▀▀▀   │
+      ╲ ═════ ╱
+       ╰─────╯
+      ╳╳╳╳╳╳╳╳╳
+       ╲     ╱
+        ╲   ╱
+     !! DANGER !!` },
+            { name: 'Black IC Warning', art:
+`  ╔══════════════════════╗
+  ║ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ ║
+  ║ ▓  !! WARNING !!   ▓ ║
+  ║ ▓                  ▓ ║
+  ║ ▓  BLACK IC ACTIVE ▓ ║
+  ║ ▓  LETHAL COUNTER- ▓ ║
+  ║ ▓  INTRUSION SYS.  ▓ ║
+  ║ ▓                  ▓ ║
+  ║ ▓ NEURAL DAMAGE    ▓ ║
+  ║ ▓ WILL OCCUR       ▓ ║
+  ║ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ ║
+  ╚══════════════════════╝` },
+            { name: 'Mana Void', art:
+`      ·  ✦  ·
+    ✦ ╱──────╲ ✦
+   ╱╱  VOID    ╲╲
+  │  ◈  NULL  ◈  │
+  │    MANA      │
+   ╲╲  ZONE    ╱╱
+    ✦ ╲──────╱ ✦
+      ·  ✦  ·
+   NO SPELLCASTING` },
+            { name: 'Quarantine Zone', art:
+`  ╔══════════════════════╗
+  ║   ╱╲    ╱╲    ╱╲     ║
+  ║  ╱!!╲  ╱!!╲  ╱!!╲    ║
+  ║ ╱────╲╱────╲╱────╲   ║
+  ║                       ║
+  ║   Q U A R A N T I N E ║
+  ║       Z O N E         ║
+  ║  CFSS AUTHORIZATION   ║
+  ║  REQUIRED FOR ENTRY   ║
+  ╚══════════════════════╝` },
+            { name: 'Explosives', art:
+`         ,─.
+        ( ◉ )
+         '─'
+         /|\\
+        / | \\
+       /  |  \\
+  ════════════════
+  !! EXPLOSIVES !!
+   BLAST RADIUS
+     100 METERS` },
+            { name: 'Restricted Area', art:
+`  ┏━━━━━━━━━━━━━━━━━━┓
+  ┃ ╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲ ┃
+  ┃                    ┃
+  ┃  R E S T R I C T   ┃
+  ┃  E D   A R E A     ┃
+  ┃                    ┃
+  ┃  SECURITY LEVEL:   ┃
+  ┃  ★ ★ ★ ★ ☆       ┃
+  ┃  AUTHORIZATION     ┃
+  ┃  REQUIRED          ┃
+  ┃ ╱╲╱╲╱╲╱╲╱╲╱╲╱╲╱╲ ┃
+  ┗━━━━━━━━━━━━━━━━━━┛` },
+        ]},
+        dividers: { label: 'DIVIDERS & UI', icon: '═', items: [
+            { name: 'Double Line', art: `═══════════════════════════════════════` },
+            { name: 'Single Line', art: `───────────────────────────────────────` },
+            { name: 'Dashed Line', art: `- - - - - - - - - - - - - - - - - - - -` },
+            { name: 'Header Box', art:
+`╔═══════════════════════════════╗
+║       SECTION TITLE           ║
+╚═══════════════════════════════╝` },
+            { name: 'Data Box', art:
+`┌───────────────────────────────┐
+│                               │
+│   DATA ENTRY                  │
+│                               │
+└───────────────────────────────┘` },
+            { name: 'Warning Box', art:
+`╔═══════════════════════════════╗
+║  ⚠  WARNING: ___________     ║
+╠═══════════════════════════════╣
+║                               ║
+╚═══════════════════════════════╝` },
+            { name: 'Classified Banner', art:
+`▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+▓    [CLASSIFIED] TOP SECRET     ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓` },
+            { name: 'Stats Block (SR6)', art:
+`╔═══════════════════════════╗
+║ B  A  R  S  W  L  I  C   ║
+╠═══════════════════════════╣
+║ _  _  _  _  _  _  _  _   ║
+╠═══════════════════════════╣
+║ EDG: _  ESS: _._  M: _   ║
+╚═══════════════════════════╝` },
+            { name: 'Dossier Header', art:
+`┌──────────────────────────────┐
+│ ■ SUBJECT DOSSIER            │
+├──────────────────────────────┤
+│ NAME:                        │
+│ ALIAS:                       │
+│ METATYPE:                    │
+│ AFFILIATION:                 │
+│ THREAT LEVEL: ★ ☆ ☆ ☆ ☆    │
+└──────────────────────────────┘` },
+            { name: 'Map Grid', art:
+`╔══╦══╦══╦══╦══╗
+║  ║  ║  ║  ║  ║
+╠══╬══╬══╬══╬══╣
+║  ║  ║  ║  ║  ║
+╠══╬══╬══╬══╬══╣
+║  ║  ║  ║  ║  ║
+╚══╩══╩══╩══╩══╝` },
+            { name: 'Transmission Block', art:
+`╔═══════════════════════════════╗
+║ ▸▸▸ INCOMING TRANSMISSION ◂◂◂ ║
+╠═══════════════════════════════╣
+║ FROM:                         ║
+║ ENCRYPT: ███████████          ║
+║ ─────────────────────────     ║
+║                               ║
+║ ◂◂◂ END TRANSMISSION ▸▸▸     ║
+╚═══════════════════════════════╝` },
+        ]},
+        locations: { label: 'LOCATIONS', icon: '◎', items: [
+            { name: 'Arcology', art:
+`           /\\
+          /  \\
+         / ░░ \\
+        / ░░░░ \\
+       / ░░░░░░ \\
+      / ░░░░░░░░ \\
+     / ░░░░░░░░░░ \\
+    /________________\\
+  ════════════════════
+    CORPORATE ARCOLOGY` },
+            { name: 'Nightclub / Bar', art:
+`  ╔══════════════════╗
+  ║ ♪ ♫  ♪ ♫  ♪ ♫   ║
+  ║                   ║
+  ║  N I G H T C L U B║
+  ║   ▓▓▓▓▓▓▓▓▓▓▓▓   ║
+  ║  ╱╱╱╱╱BAR╱╱╱╱╱   ║
+  ║  █ █ █ █ █ █ █   ║
+  ╚══════╡  ╞════════╝` },
+            { name: 'Safehouse', art:
+`      .───────────.
+     ╱  SAFEHOUSE  ╲
+    ╱───────────────╲
+    │ ░░  ░░    [☰] │
+    │ ░░  ░░        │
+    │      ╔════╗   │
+    │      ║SAFE║   │
+    │      ╚════╝   │
+    └──────╡  ╞─────┘
+     [SECURE LOCATION]` },
+            { name: 'Barrens District', art:
+`   ╱▓╲  ╱╲ ╱▓╲
+  ╱▓▓▓╲╱▓╲╱▓▓▓╲
+  │▓▓▓▓│▓▓│▓▓▓▓│
+  │░ ░ │░░│░ ░ │
+  │ ░░ │░░│ ░  │
+  ╧════╧══╧════╧
+ ~~~~~~~~~~~~~~~~~~~
+  THE BARRENS` },
+            { name: 'Building (Generic)', art:
+`       ┌─────────┐
+       │ ░░ ░░ ░░│
+       │ ░░ ░░ ░░│
+       │ ░░ ░░ ░░│
+       │ ░░ ░░ ░░│
+       │ ░░ ░░ ░░│
+  ═════╧═╡  ╞═╧═════` },
+        ]},
+        magic: { label: 'MAGIC & ASTRAL', icon: '◈', items: [
+            { name: 'Summoning Circle', art:
+`       ·  ✦  ·
+     ✦ ╱──────╲ ✦
+    ╱ ╱ ╲    ╱ ╲ ╲
+   │ │ ◈ ╲╱ ◈  │ │
+   │ │  CIRCLE  │ │
+   │ │ ◈  ╱╲ ◈ │ │
+    ╲ ╲ ╱    ╲ ╱ ╱
+     ✦ ╲──────╱ ✦
+       ·  ✦  ·` },
+            { name: 'Mana Spiral', art:
+`      ◈ · · ◈
+    ·  ╱─────╲  ·
+   · ╱  ╱───╲  ╲ ·
+  ◈ │  │  ◈  │  │ ◈
+   · ╲  ╲───╱  ╱ ·
+    ·  ╲─────╱  ·
+      ◈ · · ◈
+    MANA FLOW: ACTIVE` },
+            { name: 'Spirit (Elemental)', art:
+`      ~ ~ ~ ~ ~
+     ~ ╭─────╮ ~
+    ~ ╱  ◈ ◈  ╲ ~
+    ~│   ≈≈≈   │~
+    ~ ╲  ~~~  ╱ ~
+     ~ ╰─────╯ ~
+    ~ ~ ╱   ╲ ~ ~
+      ~ ~ ~ ~ ~
+    [SPIRIT: FORCE _]` },
+            { name: 'Ward Barrier', art:
+`  ╔═╗═══════════╔═╗
+  ║◈║  WARDED   ║◈║
+  ║ ║  AREA     ║ ║
+  ║◈║           ║◈║
+  ║ ║  FORCE: _ ║ ║
+  ║◈║           ║◈║
+  ╚═╝═══════════╚═╝` },
+            { name: 'Astral Rift', art:
+`    ╲ │ ╱ ─ ╲ │ ╱
+     ╲│╱       ╲│╱
+  ────   ASTRAL   ────
+     ╱|╲  RIFT  ╱|╲
+    ╱ │ ╲ ─ ╱ │ ╲
+  ═══════════════════
+  BACKGROUND COUNT: ?` },
+            { name: 'Magical Lodge', art:
+`      ╱╲  ◈  ╱╲
+     ╱  ╲───╱  ╲
+    ╱  ◈ │ │ ◈  ╲
+   │─────┤ ├─────│
+   │ LODGE│ │     │
+   │ F: _ │ │     │
+    ╲  ◈ │ │ ◈  ╱
+     ╲  ╱───╲  ╱
+      ╲╱  ◈  ╲╱` },
+        ]},
+    };
+
+    // =========================================
+    // ASCII PICKER LOGIC
+    // =========================================
+    let _currentPickerItems = [];
+
+    function openAsciiPicker() {
+        SFX.click();
+        document.getElementById('asciiPickerOverlay').classList.add('active');
+        document.getElementById('asciiSearch').value = '';
+        renderAsciiTabs();
+        renderAsciiGrid();
+        setTimeout(() => document.getElementById('asciiSearch').focus(), 50);
+    }
+
+    function closeAsciiPicker() {
+        SFX.click();
+        document.getElementById('asciiPickerOverlay').classList.remove('active');
+    }
+
+    function renderAsciiTabs() {
+        const c = document.getElementById('asciiTabs');
+        c.innerHTML = Object.keys(ASCII_LIB).map(key => {
+            const cat = ASCII_LIB[key];
+            return `<div class="ascii-tab ${activeAsciiTab===key?'active':''}" onclick="selectAsciiTab('${key}')">
+                <span class="tab-icon">${cat.icon}</span>
+                <span>${cat.label}</span>
+                <span class="tab-count">${cat.items.length}</span>
+            </div>`;
+        }).join('');
+    }
+
+    function selectAsciiTab(key) {
+        SFX.click();
+        activeAsciiTab = key;
+        renderAsciiTabs();
+        renderAsciiGrid();
+    }
+
+    function renderAsciiGrid() {
+        const search = document.getElementById('asciiSearch').value.toLowerCase();
+        const grid = document.getElementById('asciiGrid');
+
+        if (search) {
+            _currentPickerItems = [];
+            Object.values(ASCII_LIB).forEach(cat => {
+                cat.items.forEach(item => {
+                    if (item.name.toLowerCase().includes(search)) _currentPickerItems.push(item);
+                });
+            });
+        } else {
+            _currentPickerItems = ASCII_LIB[activeAsciiTab]?.items || [];
+        }
+
+        if (_currentPickerItems.length === 0) {
+            grid.innerHTML = '<div style="padding:30px;text-align:center;opacity:0.4;">No matching art found</div>';
+            return;
+        }
+
+        grid.innerHTML = _currentPickerItems.map((item, i) => `
+            <div class="ascii-card" onclick="insertAsciiArt(${i})">
+                <div class="ascii-card-header">
+                    <span class="ascii-card-name">${escHtml(item.name)}</span>
+                    <span class="ascii-card-insert">▸ CLICK TO INSERT</span>
+                </div>
+                <div class="ascii-card-preview">${escHtml(item.art)}</div>
+            </div>
+        `).join('');
+    }
+
+    function insertAsciiArt(index) {
+        const item = _currentPickerItems[index];
+        if (!item) return;
+        const ta = document.getElementById('fieldContent');
+        const start = ta.selectionStart, end = ta.selectionEnd;
+        const before = ta.value.substring(0, start), after = ta.value.substring(end);
+        const pre = before.length > 0 && !before.endsWith('\n') ? '\n' : '';
+        const suf = after.length > 0 && !after.startsWith('\n') ? '\n' : '';
+        ta.value = before + pre + item.art + suf + after;
+        const np = start + pre.length + item.art.length + suf.length;
+        ta.selectionStart = ta.selectionEnd = np;
+        SFX.insert();
+        markUnsaved();
+        updateContentMeta();
+        closeAsciiPicker();
+        toast(`Inserted: ${item.name}`);
+        ta.focus();
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && document.getElementById('asciiPickerOverlay').classList.contains('active')) {
+            closeAsciiPicker(); return;
+        }
+        if (document.getElementById('asciiPickerOverlay').classList.contains('active')) return;
+        if ((e.ctrlKey||e.metaKey) && e.key==='s') { e.preventDefault(); if(selectedId) saveCurrentEntry(); }
+        if ((e.ctrlKey||e.metaKey) && e.key==='n') { e.preventDefault(); newEntry(); }
+    });
+
+    document.getElementById('asciiPickerOverlay').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('asciiPickerOverlay')) closeAsciiPicker();
+    });
+
+    // =========================================
+    // ENTRY MANAGEMENT
+    // =========================================
+    function newEntry() {
+        SFX.click();
+        const entry = { id: nextId++, category: 'LOCATIONS', title: '', content: '' };
+        entries.push(entry);
+        selectedId = entry.id;
+        markUnsaved(); renderAll(); showEditor(entry);
+        document.getElementById('fieldTitle').focus();
+    }
+
+    function selectEntry(id) {
+        SFX.click();
+        saveFieldsToEntry(selectedId);
+        selectedId = id;
+        const entry = entries.find(e => e.id === id);
+        if (entry) showEditor(entry);
+        renderEntryList();
+    }
+
+    function showEditor(entry) {
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('editorFields').style.display = 'flex';
+        document.getElementById('toolbarActions').style.display = 'flex';
+        document.getElementById('editorLabel').textContent = `EDITING: ${entry.title || '(UNTITLED)'}`;
+        const catSelect = document.getElementById('fieldCategory');
+        const customRow = document.getElementById('customCatRow');
+        const defaultCats = [...catSelect.options].map(o => o.value).filter(v => v !== '__custom__');
+        if (defaultCats.includes(entry.category)) {
+            catSelect.value = entry.category;
+            customRow.classList.remove('visible');
+        } else {
+            catSelect.value = '__custom__';
+            customRow.classList.add('visible');
+            document.getElementById('customCatInput').value = entry.category;
+        }
+        document.getElementById('fieldTitle').value = entry.title;
+        document.getElementById('fieldContent').value = entry.content;
+        updateContentMeta();
+    }
+
+    function saveFieldsToEntry(id) {
+        if (!id) return;
+        const entry = entries.find(e => e.id === id);
+        if (!entry) return;
+        let cat = document.getElementById('fieldCategory').value;
+        if (cat === '__custom__') cat = document.getElementById('customCatInput').value.trim().toUpperCase() || 'MISC';
+        const title = document.getElementById('fieldTitle').value.trim();
+        const content = document.getElementById('fieldContent').value.trim();
+        if (entry.category !== cat || entry.title !== title || entry.content !== content) {
+            entry.category = cat; entry.title = title; entry.content = content; markUnsaved();
+        }
+    }
+
+    function saveCurrentEntry() {
+        saveFieldsToEntry(selectedId);
+        const entry = entries.find(e => e.id === selectedId);
+        if (entry) {
+            SFX.save();
+            document.getElementById('editorLabel').textContent = `EDITING: ${entry.title || '(UNTITLED)'}`;
+            toast(`Entry saved: ${entry.title || '(UNTITLED)'}`);
+        }
+        renderAll();
+    }
+
+    function duplicateEntry() {
+        saveFieldsToEntry(selectedId);
+        const src = entries.find(e => e.id === selectedId);
+        if (!src) return;
+        SFX.click();
+        const clone = { id: nextId++, category: src.category, title: src.title + ' (copy)', content: src.content };
+        entries.push(clone);
+        selectedId = clone.id;
+        markUnsaved(); renderAll(); showEditor(clone);
+        toast('Entry cloned', 'amber');
+    }
+
+    function confirmDeleteEntry() {
+        const entry = entries.find(e => e.id === selectedId);
+        if (!entry) return;
+        document.getElementById('deleteMsg').textContent = `Permanently remove "${entry.title || '(UNTITLED)'}"?`;
+        document.getElementById('deleteDialog').classList.add('active');
+    }
+
+    function doDeleteEntry() {
+        SFX.del();
+        entries = entries.filter(e => e.id !== selectedId);
+        closeDialog('deleteDialog');
+        selectedId = null; markUnsaved(); renderAll();
+        document.getElementById('emptyState').style.display = '';
+        document.getElementById('editorFields').style.display = 'none';
+        document.getElementById('toolbarActions').style.display = 'none';
+        document.getElementById('editorLabel').textContent = 'NO ENTRY SELECTED';
+        toast('Entry deleted', 'error');
+    }
+
+    // =========================================
+    // RENDERING
+    // =========================================
+    function renderAll() { renderFilters(); renderEntryList(); updateStats(); }
+
+    function renderFilters() {
+        const cats = new Set(entries.map(e => e.category));
+        const row = document.getElementById('filterRow');
+        let html = `<button class="filter-chip ${activeFilter==='ALL'?'active':''}" onclick="setFilter('ALL')">ALL</button>`;
+        [...cats].sort().forEach(c => { html += `<button class="filter-chip ${activeFilter===c?'active':''}" onclick="setFilter('${c}')">${c}</button>`; });
+        row.innerHTML = html;
+    }
+
+    function setFilter(f) { SFX.click(); activeFilter = f; renderAll(); }
+
+    function renderEntryList() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const list = document.getElementById('entryList');
+        let filtered = entries;
+        if (activeFilter !== 'ALL') filtered = filtered.filter(e => e.category === activeFilter);
+        if (search) filtered = filtered.filter(e => e.title.toLowerCase().includes(search) || e.content.toLowerCase().includes(search) || e.category.toLowerCase().includes(search));
+        if (filtered.length === 0) { list.innerHTML = `<div style="padding:20px;text-align:center;opacity:0.3;font-size:0.9em;">No entries found</div>`; return; }
+        list.innerHTML = filtered.map(e => {
+            const catClass = getCatClass(e.category);
+            const sel = e.id === selectedId ? 'selected' : '';
+            return `<div class="entry-item ${sel}" onclick="selectEntry(${e.id})" data-id="${e.id}">
+                <span class="cat-badge ${catClass}">${e.category.substring(0,4)}</span>
+                <span class="entry-title-text">${escHtml(e.title || '(UNTITLED)')}</span>
+            </div>`;
+        }).join('');
+    }
+
+    function getCatClass(cat) {
+        return ['LOCATIONS','CORPORATIONS','PEOPLE','MAGIC','TECH','HISTORY','FACTIONS','CONFIDENTIAL'].includes(cat) ? `cat-${cat}` : 'cat-default';
+    }
+
+    function updateStats() {
+        document.getElementById('statEntries').textContent = entries.length;
+        document.getElementById('statCats').textContent = new Set(entries.map(e => e.category)).size;
+    }
+
+    function updateContentMeta() {
+        const text = document.getElementById('fieldContent').value;
+        document.getElementById('charCount').textContent = text.length + ' chars';
+        document.getElementById('wordCount').textContent = (text.trim() ? text.trim().split(/\s+/).length : 0) + ' words';
+    }
+
+    // =========================================
+    // IMPORT / EXPORT
+    // =========================================
+    function showImportDialog() { SFX.click(); document.getElementById('importDialog').classList.add('active'); setupDragDrop(); }
+
+    function setupDragDrop() {
+        const zone = document.getElementById('importZone');
+        zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
+        zone.ondragleave = () => zone.classList.remove('dragover');
+        zone.ondrop = (e) => { e.preventDefault(); zone.classList.remove('dragover'); if (e.dataTransfer.files.length) processImportFile(e.dataTransfer.files[0]); };
+    }
+
+    function handleImportFile(e) { if (e.target.files.length) processImportFile(e.target.files[0]); e.target.value = ''; }
+
+    function processImportFile(file) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const raw = ev.target.result.trim();
+            const name = file.name.toLowerCase();
+            let content;
+            if (name.endsWith('.dat') || name.endsWith('.db') || name.endsWith('.bin')) {
+                try { content = xorCrypt(atob(raw)); } catch(e) { SFX.error(); toast('Failed to decrypt file','error'); return; }
+            } else { content = raw; }
+            if (!content.includes(':') || !content.includes('|')) { SFX.error(); toast('Invalid database format','error'); return; }
+            parseImport(content);
+            closeDialog('importDialog');
+            SFX.load();
+            toast(`Imported ${entries.length} entries from ${file.name}`);
+        };
+        reader.readAsText(file);
+    }
+
+    function parseImport(content) {
+        entries = []; selectedId = null;
+        content.split('\n\n').forEach(block => {
+            block = block.trim(); if (!block) return;
+            const ci = block.indexOf(':'); if (ci < 0) return;
+            const cat = block.substring(0, ci).trim();
+            const rest = block.substring(ci + 1);
+            const pi = rest.indexOf('|'); if (pi < 0) return;
+            entries.push({ id: nextId++, category: cat, title: rest.substring(0, pi).trim(), content: rest.substring(pi + 1).trim() });
+        });
+        renderAll();
+        document.getElementById('emptyState').style.display = '';
+        document.getElementById('editorFields').style.display = 'none';
+        document.getElementById('toolbarActions').style.display = 'none';
+        document.getElementById('editorLabel').textContent = 'NO ENTRY SELECTED';
+    }
+
+    function entriesToTxt() { saveFieldsToEntry(selectedId); return entries.map(e => `${e.category}:${e.title}|${e.content}`).join('\n\n') + '\n'; }
+
+    function exportTxt() {
+        if (!entries.length) { SFX.error(); toast('No entries to export','error'); return; }
+        SFX.save(); downloadFile(entriesToTxt(), 'database.txt', 'text/plain'); toast('Exported database.txt');
+    }
+
+    function exportDat() {
+        if (!entries.length) { SFX.error(); toast('No entries to export','error'); return; }
+        SFX.save(); downloadFile(btoa(xorCrypt(entriesToTxt())), 'database.dat', 'application/octet-stream'); toast('Exported encrypted database.dat');
+    }
+
+    function downloadFile(content, filename, mime) {
+        const blob = new Blob([content], { type: mime }), url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+    }
+
+    // =========================================
+    // UI HELPERS
+    // =========================================
+    function closeDialog(id) { document.getElementById(id).classList.remove('active'); }
+    function markUnsaved() { unsavedChanges = true; document.getElementById('unsavedIndicator').style.display = ''; }
+    function toast(msg, type = '') {
+        let c = document.querySelector('.toast-container');
+        if (!c) { c = document.createElement('div'); c.className = 'toast-container'; document.body.appendChild(c); }
+        const t = document.createElement('div'); t.className = 'toast ' + type; t.textContent = '▸ ' + msg; c.appendChild(t);
+        setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 2500);
+    }
+    function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function onCategoryChange() {
+        const sel = document.getElementById('fieldCategory'), row = document.getElementById('customCatRow');
+        if (sel.value === '__custom__') { row.classList.add('visible'); document.getElementById('customCatInput').focus(); } else { row.classList.remove('visible'); }
+        markUnsaved();
+    }
+
+    document.getElementById('fieldContent').addEventListener('input', updateContentMeta);
+    window.addEventListener('beforeunload', (e) => { if (unsavedChanges && entries.length > 0) { e.preventDefault(); e.returnValue = ''; } });
+
+    renderAll();
+    </script>
+</body>
+</html>
