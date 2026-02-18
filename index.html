@@ -602,7 +602,9 @@
     <!-- Boot Screen -->
     <div class="boot-screen" id="bootScreen">
         <div class="boot-left">
-            <div class="boot-output glow" id="bootOutput"></div>
+            <div class="boot-output glow">
+                <pre id="bootOutput"></pre>
+            </div>
         </div>
         <div class="boot-right">
             <div class="boot-logo glow" id="bootLogo"></div>
@@ -808,8 +810,7 @@
             const bootScreen = document.getElementById('bootScreen');
             
             // Right side ASCII art (shows after initial diagnostics)
-            const rightSideLogo = `
-<span style="color:#ffb000">     █████╗ ██████╗ ███████╗███████╗</span>
+            const rightSideLogo = `<pre><span style="color:#ffb000">     █████╗ ██████╗ ███████╗███████╗</span>
 <span style="color:#ffb000">    ██╔══██╗██╔══██╗██╔════╝██╔════╝</span>
 <span style="color:#ffb000">    ███████║██████╔╝█████╗  ███████╗</span>
 <span style="color:#ffb000">    ██╔══██║██╔══██╗██╔══╝  ╚════██║</span>
@@ -819,29 +820,29 @@
 
 <span style="color:#20c20e">════════════════════════════════════</span>
 
-<span style="color:#00d4aa">  ██████╗ ██╗      █████╗  ██████╗██╗  ██╗</span>
-<span style="color:#00d4aa">  ██╔══██╗██║     ██╔══██╗██╔════╝██║ ██╔╝</span>
-<span style="color:#00d4aa">  ██████╔╝██║     ███████║██║     █████╔╝</span>
-<span style="color:#00d4aa">  ██╔══██╗██║     ██╔══██║██║     ██╔═██╗</span>
-<span style="color:#00d4aa">  ██████╔╝███████╗██║  ██║╚██████╗██║  ██╗</span>
-<span style="color:#00d4aa">  ╚═════╝ ╚══════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝</span>
+<span style="color:#00d4aa"> ██████╗ ██╗      █████╗  ██████╗██╗  ██╗</span>
+<span style="color:#00d4aa"> ██╔══██╗██║     ██╔══██╗██╔════╝██║ ██╔╝</span>
+<span style="color:#00d4aa">██████╔╝██║     ███████║██║     █████╔╝</span>
+<span style="color:#00d4aa">██╔══██╗██║     ██╔══██║██║     ██╔═██╗</span>
+<span style="color:#00d4aa"> ██████╔╝███████╗██║  ██║╚██████╗██║  ██╗</span>
+<span style="color:#00d4aa"> ╚═════╝ ╚══════╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝</span>
 
-<span style="color:#00d4aa">  ██████╗ ███████╗███████╗███████╗██████╗ ████████╗</span>
-<span style="color:#00d4aa">  ██╔══██╗██╔════╝██╔════╝██╔════╝██╔══██╗╚══██╔══╝</span>
-<span style="color:#00d4aa">  ██║  ██║█████╗  ███████╗█████╗  ██████╔╝   ██║</span>
-<span style="color:#00d4aa">  ██║  ██║██╔══╝  ╚════██║██╔══╝  ██╔══██╗   ██║</span>
-<span style="color:#00d4aa">  ██████╔╝███████╗███████║███████╗██║  ██║   ██║</span>
-<span style="color:#00d4aa">  ╚═════╝ ╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝   ╚═╝</span>
+<span style="color:#00d4aa">   ██████╗ ███████╗███████╗███████╗██████╗ ████████╗</span>
+<span style="color:#00d4aa">   ██╔══██╗██╔════╝██╔════╝██╔════╝██╔══██╗╚══██╔══╝</span>
+<span style="color:#00d4aa">██║  ██║█████╗  ███████╗█████╗  ██████╔╝   ██║</span>
+<span style="color:#00d4aa">██║  ██║██╔══╝  ╚════██║██╔══╝  ██╔══██╗   ██║</span>
+<span style="color:#00d4aa">██████╔╝███████╗███████║███████╗██║  ██║   ██║</span>
+<span style="color:#00d4aa">╚═════╝ ╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝   ╚═╝</span>
 
 <span style="color:#39ff14;text-shadow:0 0 10px #20c20e">    R E S E A R C H   T E R M I N A L</span>
 
 <span style="color:#20c20e">════════════════════════════════════</span>
 
 <span style="color:#ff3333">  ╔═══════════════════════════════════════╗</span>
-<span style="color:#ff3333">  ║  W A R N I N G :  AUTHORIZED ONLY    ║</span>
-<span style="color:#ff3333">  ║  All activity monitored and logged.  ║</span>
+<span style="color:#ff3333">  ║  W A R N I N G :  AUTHORIZED ONLY     ║</span>
+<span style="color:#ff3333">  ║  All activity monitored and logged.   ║</span>
 <span style="color:#ff3333">  ╚═══════════════════════════════════════╝</span>
-`;
+</pre>`;
             
             // Boot sequence for left side (diagnostics only)
             const bootSequence = [
