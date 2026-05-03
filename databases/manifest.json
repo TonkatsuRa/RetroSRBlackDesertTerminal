@@ -1,0 +1,40 @@
+{
+  "databases": [
+    {
+      "id": "database1",
+      "displayName": "Personnel Registry",
+      "description": "Employee, contractor, and missing staff notes for Black Desert Research.",
+      "file": "database1.md"
+    },
+    {
+      "id": "database2",
+      "displayName": "Security Incidents",
+      "description": "Patrol reports, alarm events, and defense-grid irregularities.",
+      "file": "database2.md"
+    },
+    {
+      "id": "database3",
+      "displayName": "Research Assets",
+      "description": "Specimen vaults, prototype lockers, and archived lab inventory.",
+      "file": "database3.md"
+    },
+    {
+      "id": "database4",
+      "displayName": "Outpost Relay Logs",
+      "description": "Remote station, drone uplink, and mesh-network records.",
+      "file": "database4.md"
+    },
+    {
+      "id": "database5",
+      "displayName": "Maintenance Queue",
+      "description": "Power, life-support, access, and generator maintenance backlog.",
+      "file": "database5.md"
+    },
+    {
+      "id": "database6",
+      "displayName": "Confidential Archive",
+      "description": "Restricted executive notes, redacted incidents, and sealed directives.",
+      "file": "database6.md"
+    }
+  ]
+}

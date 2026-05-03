@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ares Terminal Content Editor</title>
+    <link rel="icon" href="data:,">
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #030604;
+            --panel: #07130b;
+            --panel-2: #0b1b10;
+            --line: rgba(32, 194, 14, 0.28);
+            --line-amber: rgba(255, 176, 0, 0.4);
+            --text: #c8f8c0;
+            --muted: #6f8f6c;
+            --green: #20c20e;
+            --cyan: #00d4aa;
+            --amber: #ffb000;
+            --red: #ff4b4b;
+            --radius: 8px;
+            --shadow: 0 0 34px rgba(32, 194, 14, 0.11);
+            --font-ui: "IBM Plex Mono", "Consolas", "Courier New", monospace;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            background:
+                linear-gradient(rgba(32, 194, 14, 0.03) 1px, transparent 1px),
+                radial-gradient(circle at top left, rgba(0, 212, 170, 0.12), transparent 38rem),
+                var(--bg);
+            background-size: 100% 4px, auto, auto;
+            color: var(--text);
+            font-family: var(--font-ui);
+        }
+
+        body {
+            min-height: 100svh;
+            padding: 16px;
+        }
+
+        button,
+        input,
+        textarea,
+        select {
+            font: inherit;
+        }
+
+        button {
+            min-height: 42px;
+            border: 1px solid var(--line-amber);
+            background: rgba(255, 176, 0, 0.09);
+            color: var(--amber);
+            padding: 9px 12px;
+            cursor: pointer;
+        }
+
+        button:hover { border-color: var(--amber); }
+        button:focus-visible,
+        input:focus-visible,
+        textarea:focus-visible,
+        select:focus-visible {
+            outline: 2px solid var(--amber);
+            outline-offset: 3px;
+        }
+
+        .app {
+            width: min(1420px, 100%);
+            margin-inline: auto;
+        }
+
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: end;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            border: 1px solid var(--line);
+            background: rgba(3, 12, 5, 0.86);
+            box-shadow: var(--shadow);
+            padding: 14px;
+        }
+
+        h1 {
+            margin: 0 0 6px;
+            color: var(--amber);
+            font-size: clamp(1.15rem, 2.4vw, 1.7rem);
+            letter-spacing: 0.08em;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: var(--muted);
+            max-width: 76ch;
+            line-height: 1.5;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .status {
+            min-height: 1.4em;
+            margin: 0 0 12px;
+            color: var(--cyan);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
+            gap: 14px;
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            background: rgba(7, 19, 11, 0.92);
+            box-shadow: var(--shadow);
+            padding: 14px;
+        }
+
+        .panel h2 {
+            margin: 0 0 12px;
+            color: var(--cyan);
+            font-size: 1rem;
+            letter-spacing: 0.08em;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        label {
+            display: grid;
+            gap: 6px;
+            color: var(--muted);
+            font-size: 0.78rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            border: 1px solid var(--line);
+            background: rgba(0, 12, 4, 0.84);
+            color: var(--text);
+            padding: 10px;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+            line-height: 1.45;
+            white-space: pre;
+        }
+
+        input[type="range"] {
+            padding: 0;
+            accent-color: var(--amber);
+        }
+
+        details {
+            border: 1px solid rgba(32, 194, 14, 0.22);
+            background: rgba(0, 0, 0, 0.18);
+            margin-top: 10px;
+        }
+
+        summary {
+            cursor: pointer;
+            padding: 10px;
+            color: var(--amber);
+        }
+
+        .details-body {
+            display: grid;
+            gap: 10px;
+            padding: 0 10px 10px;
+        }
+
+        .diag-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .diag-card {
+            border: 1px solid rgba(255, 176, 0, 0.18);
+            background: rgba(0, 8, 3, 0.48);
+            padding: 10px;
+        }
+
+        .diag-card h3 {
+            margin: 0 0 10px;
+            color: var(--amber);
+            font-size: 0.92rem;
+        }
+
+        .raw textarea {
+            min-height: 68svh;
+            tab-size: 4;
+        }
+
+        .preview {
+            margin-top: 14px;
+        }
+
+        .preview-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .preview-item {
+            border-left: 3px solid var(--green);
+            background: rgba(0, 20, 6, 0.58);
+            padding: 8px 10px;
+            white-space: pre-wrap;
+        }
+
+        .preview-item.warn { border-color: var(--amber); }
+        .preview-item.alert { border-color: var(--red); }
+
+        .note {
+            color: var(--muted);
+            line-height: 1.5;
+            font-size: 0.88rem;
+        }
+
+        .hidden { display: none; }
+
+        @media (max-width: 980px) {
+            body { padding: 10px; }
+            .grid { grid-template-columns: 1fr; }
+            .field-grid { grid-template-columns: 1fr; }
+            .raw textarea { min-height: 48svh; }
+        }
+    </style>
+</head>
+<body>
+    <main class="app">
+        <header>
+            <div>
+                <h1>ARES TERMINAL CONTENT EDITOR</h1>
+                <p class="subtitle">Edit boot text, welcome/help copy, diagnostics, and facility status data. On GitHub Pages this page can load files with fetch. Local saving means downloading an edited file unless your browser supports local file saving.</p>
+            </div>
+            <div class="toolbar" aria-label="Editor actions">
+                <button id="loadSiteBtn" type="button">LOAD SITE CONTENT</button>
+                <button id="openFileBtn" type="button">OPEN LOCAL FILE</button>
+                <button id="applyBtn" type="button">APPLY FORMS</button>
+                <button id="reloadBtn" type="button">RELOAD FORMS</button>
+                <button id="downloadBtn" type="button">DOWNLOAD MD</button>
+                <button id="saveLocalBtn" type="button" class="hidden">SAVE LOCAL FILE</button>
+            </div>
+        </header>
+
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+        <input id="fileInput" class="hidden" type="file" accept=".md,.txt,.dat">
+
+        <div class="grid">
+            <section class="panel" aria-label="Structured terminal content fields">
+                <h2>COMMON FIELDS</h2>
+                <div class="field-grid">
+                    <label>Terminal title
+                        <input id="terminalTitle" type="text">
+                    </label>
+                    <label>Build
+                        <input id="terminalBuild" type="text">
+                    </label>
+                </div>
+
+                <details open>
+                    <summary>Command Labels</summary>
+                    <div class="details-body field-grid" id="commandFields"></div>
+                </details>
+
+                <details open>
+                    <summary>Welcome / Help Text</summary>
+                    <div class="details-body">
+                        <label>Welcome text, one terminal line per row
+                            <textarea id="welcomeText"></textarea>
+                        </label>
+                        <label>Help text, one terminal line per row
+                            <textarea id="helpText"></textarea>
+                        </label>
+                    </div>
+                </details>
+
+                <details>
+                    <summary>Boot Logo</summary>
+                    <div class="details-body">
+                        <label>ASCII logo, one terminal line per row
+                            <textarea id="bootLogo"></textarea>
+                        </label>
+                        <p class="note">Boot steps are preserved in the raw Markdown editor on the right. Edit the raw sections named <strong>boot.step.001</strong>, <strong>boot.step.002</strong>, etc. for exact boot sequence changes.</p>
+                    </div>
+                </details>
+
+                <details open>
+                    <summary>Diagnostics</summary>
+                    <div class="details-body">
+                        <div class="field-grid">
+                            <label>Diagnostic title
+                                <input id="diagnosticTitle" type="text">
+                            </label>
+                            <label>Diagnostic ticker
+                                <input id="diagnosticTicker" type="text">
+                            </label>
+                        </div>
+                        <div class="diag-grid" id="diagnosticFields"></div>
+                    </div>
+                </details>
+
+                <details open>
+                    <summary>Facility Status</summary>
+                    <div class="details-body">
+                        <div class="field-grid">
+                            <label>Facility title
+                                <input id="facilityTitle" type="text">
+                            </label>
+                            <label>Facility ticker
+                                <input id="facilityTicker" type="text">
+                            </label>
+                            <label>Structure %
+                                <input id="facilityStructure" type="range" min="0" max="100">
+                            </label>
+                            <label>Power %
+                                <input id="facilityPower" type="range" min="0" max="100">
+                            </label>
+                            <label>Reserve %
+                                <input id="facilityReserve" type="range" min="0" max="100">
+                            </label>
+                            <label>Repair index
+                                <input id="facilityRepair" type="text">
+                            </label>
+                        </div>
+                        <label>Facility overview readout
+                            <textarea id="facilityOverview"></textarea>
+                        </label>
+                        <label>Facility zone readout
+                            <textarea id="facilityZones"></textarea>
+                        </label>
+                        <label>Bio / fault readout
+                            <textarea id="facilityContacts"></textarea>
+                        </label>
+                    </div>
+                </details>
+            </section>
+
+            <section class="panel raw" aria-label="Raw Markdown editor">
+                <h2>RAW MARKDOWN OUTPUT</h2>
+                <label>Editable terminal-content.md
+                    <textarea id="rawMarkdown" spellcheck="false"></textarea>
+                </label>
+                <p class="note">Use APPLY FORMS before downloading if you changed structured fields. Long text uses ```terminal blocks, so you can write normal lines without line1/line2 keys. You can also edit this raw Markdown directly, then use RELOAD FORMS to refresh the fields.</p>
+            </section>
+        </div>
+
+        <section class="panel preview" aria-label="Parsed preview">
+            <h2>PARSED PREVIEW</h2>
+            <div id="preview" class="preview-list"></div>
+        </section>
+    </main>
+
+    <script>
+        const DEFAULT_CONTENT = `# Terminal Content
+// Fallback sample. Use LOAD SITE CONTENT or OPEN LOCAL FILE for the full file.
+
+## terminal
+title = BLACK DESERT RESEARCH TERMINAL
+build = 4.7.2
+
+## commands
+welcome = WELCOME
+help = HELP
+diagnostic = DIAGNOSTIC
+facility = FACILITY STATUS
+load = LOAD DATABASE
+search = SEARCH
+categories = CATEGORIES
+clear = CLEAR
+access = ACCESS
+loadStatus = LOAD STATUS
+list = LIST ALL
+fsearch = FUZZY SEARCH
+logout = LOGOUT
+loadDatabase = LOAD DATABASE
+loadFile = LOAD FILE
+ejectAllDatabase = EJECT ALL DATABASE
+ejectDatabaseSlot1 = EJECT DATABASE SLOT 1
+ejectDatabaseSlot2 = EJECT DATABASE SLOT 2
+ejectDatabaseSlot3 = EJECT DATABASE SLOT 3
+statusLoad = STATUS LOAD
+statusClear = STATUS CLEAR
+statusFormat = STATUS FORMAT
+soundOn = SOUND ON
+soundOff = SOUND OFF
+
+## welcome
+\`\`\`terminal
+@dim ═══════════════════════════════════════════════════════
+@bright              ARES MACROTECHNOLOGY
+@amber WELCOME, AUTHORIZED PERSONNEL ASSET.
+@dim Use HELP for command guidance.
+\`\`\`
+
+## help
+\`\`\`terminal
+@bright SYSTEM MANUAL
+@cyan ACCESS
+  Request elevated administrator privileges.
+@cyan EJECT ALL DATABASE
+  Ejects every mounted database.
+@cyan LOAD DATABASE
+  Opens the database selector.
+@pagebreak
+@red ADMIN COMMANDS (requires ACCESS)
+
+@red FUZZY SEARCH - Search by partial match.
+
+@red LOAD STATUS / STATUS LOAD - Load status profile.
+\`\`\`
+
+## boot.logo
+\`\`\`terminal
+ARES
+MACROTECHNOLOGY SYSTEMS
+\`\`\`
+
+## diagnostic
+title = BASE DIAGNOSTIC
+ticker = FACILITY PASS: EXTERNAL COMMS DOWN // UNKNOWN LIFE SIGNS {spinner}
+
+## diagnostic.label
+network = NETWORK STATUS
+security = SECURITY INTEGRITY
+outposts = OUTPOST LINKS
+generator = POWER GENERATOR
+power = POWER RESERVES
+alarm = ALARM STATUS
+life = LIFE SIGNS
+
+## diagnostic.network
+state = alert
+status = DISCONNECTED
+level = 69
+\`\`\`terminal
+FACILITY BUS : LOCAL ONLY {spinner}
+\`\`\`
+
+## facility
+title = FACILITY STATUS
+ticker = MAINTENANCE REQUIRED // UNKNOWN LIFE SIGNS DETECTED {spinner}
+
+## facility.grid
+structure = 77
+power = 61
+reserve = 34
+repair = 06 OPEN
+`;
+
+        const COMMANDS = [
+            ['welcome', 'Welcome'], ['help', 'Help'], ['diagnostic', 'Diagnostic'],
+            ['facility', 'Facility Status'], ['load', 'Load Database'], ['search', 'Search'],
+            ['categories', 'Categories'], ['clear', 'Clear'], ['access', 'Access'],
+            ['loadStatus', 'Load Status'], ['list', 'List All'], ['fsearch', 'Fuzzy Search'],
+            ['logout', 'Logout'], ['loadDatabase', 'Typed: LOAD DATABASE'],
+            ['loadFile', 'Typed: LOAD FILE'], ['ejectAllDatabase', 'Typed: EJECT ALL DATABASE'],
+            ['ejectDatabaseSlot1', 'Typed: EJECT DATABASE SLOT 1'],
+            ['ejectDatabaseSlot2', 'Typed: EJECT DATABASE SLOT 2'],
+            ['ejectDatabaseSlot3', 'Typed: EJECT DATABASE SLOT 3'],
+            ['statusLoad', 'Typed: STATUS LOAD'], ['statusClear', 'Typed: STATUS CLEAR'],
+            ['statusFormat', 'Typed: STATUS FORMAT'], ['soundOn', 'Typed: SOUND ON'],
+            ['soundOff', 'Typed: SOUND OFF']
+        ];
+
+        const DIAGNOSTICS = [
+            ['network', 'Network'], ['security', 'Security'], ['outposts', 'Outposts'],
+            ['generator', 'Generator'], ['power', 'Power'], ['alarm', 'Alarm'], ['life', 'Life Signs']
+        ];
+
+        const els = {};
+
+        function byId(id) {
+            return document.getElementById(id);
+        }
+
+        function normalizeKey(key) {
+            return String(key || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9._-]/g, '');
+        }
+
+        function cleanValue(value) {
+            let cleaned = String(value || '').trim();
+            if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+                cleaned = cleaned.slice(1, -1);
+            }
+            return cleaned.replace(/\\n/g, '\n');
+        }
+
+        function parseTerminalBlockLine(rawLine) {
+            const styles = {
+                dim: 't-dim',
+                bright: 't-bright',
+                cyan: 't-cyan',
+                amber: 't-amber',
+                red: 't-red',
+                magenta: 't-magenta'
+            };
+            const match = String(rawLine ?? '').match(/^@([a-z]+)\s?(.*)$/i);
+            if (!match) return { text: String(rawLine ?? ''), className: '' };
+            const className = styles[match[1].toLowerCase()];
+            return className
+                ? { text: match[2], className }
+                : { text: String(rawLine ?? ''), className: '' };
+        }
+
+        function parseProfile(text) {
+            const values = {};
+            let section = '';
+            let blockSection = '';
+            let blockLine = 1;
+            let inTextBlock = false;
+            String(text || '').replace(/\r/g, '').split('\n').forEach(rawLine => {
+                let line = rawLine.trim();
+                if (line.startsWith('```')) {
+                    inTextBlock = !inTextBlock;
+                    if (inTextBlock) {
+                        blockSection = section;
+                        blockLine = 1;
+                    }
+                    return;
+                }
+                if (inTextBlock) {
+                    if (!blockSection) return;
+                    const parsed = parseTerminalBlockLine(rawLine);
+                    values[`${blockSection}.line${blockLine}`] = parsed.text;
+                    if (parsed.className) values[`${blockSection}.class${blockLine}`] = parsed.className;
+                    blockLine++;
+                    return;
+                }
+                if (!line || line === '---') return;
+                const sectionMatch = line.match(/^#{2,6}\s+([a-z0-9_.-]+)\s*$/i) || line.match(/^\[([a-z0-9_.\-\s]+)\]$/i);
+                if (sectionMatch) {
+                    section = normalizeKey(sectionMatch[1]);
+                    return;
+                }
+                if (line.startsWith('#') || line.startsWith('//') || line.startsWith('<!--')) return;
+                line = line.replace(/^[-*]\s+/, '');
+                const pair = line.match(/^([a-z0-9_.-]+)\s*(?:=|:)\s*(.*)$/i);
+                if (!pair) return;
+                let key = normalizeKey(pair[1]);
+                if (section && !key.includes('.')) key = `${section}.${key}`;
+                values[key] = cleanValue(pair[2]);
+            });
+            return values;
+        }
+
+        function getValue(values, key, fallback = '') {
+            const value = values[normalizeKey(key)];
+            return value === undefined ? fallback : value;
+        }
+
+        function classToMarker(className) {
+            const markers = {
+                't-dim': '@dim',
+                't-bright': '@bright',
+                't-cyan': '@cyan',
+                't-amber': '@amber',
+                't-red': '@red',
+                't-magenta': '@magenta'
+            };
+            return markers[className] || '';
+        }
+
+        function collectLines(values, section, max = 80, includeStyles = false) {
+            const lines = [];
+            for (let i = 1; i <= max; i++) {
+                const key = `${section}.line${i}`;
+                if (Object.prototype.hasOwnProperty.call(values, normalizeKey(key))) {
+                    const line = getValue(values, key);
+                    const marker = includeStyles ? classToMarker(getValue(values, `${section}.class${i}`, '')) : '';
+                    lines.push(marker ? `${marker} ${line}` : line);
+                }
+            }
+            return lines.join('\n');
+        }
+
+        function setStatus(message, tone = 'ok') {
+            els.status.textContent = message;
+            els.status.style.color = tone === 'error' ? 'var(--red)' : tone === 'warn' ? 'var(--amber)' : 'var(--cyan)';
+        }
+
+        function getSectionRange(text, section) {
+            const lines = String(text || '').replace(/\r/g, '').split('\n');
+            const heading = new RegExp(`^##\\s+${section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i');
+            const start = lines.findIndex(line => heading.test(line.trim()));
+            if (start < 0) return null;
+            let end = lines.length;
+            for (let i = start + 1; i < lines.length; i++) {
+                if (/^##\s+[a-z0-9_.-]+\s*$/i.test(lines[i].trim())) {
+                    end = i;
+                    break;
+                }
+            }
+            return { lines, start, end };
+        }
+
+        function replaceSection(text, section, bodyLines) {
+            const replacement = [`## ${section}`, ...bodyLines, ''];
+            const range = getSectionRange(text, section);
+            if (!range) {
+                const separator = text.endsWith('\n') ? '' : '\n';
+                return `${text}${separator}\n${replacement.join('\n')}`;
+            }
+            range.lines.splice(range.start, range.end - range.start, ...replacement);
+            return range.lines.join('\n').replace(/\n{4,}/g, '\n\n\n');
+        }
+
+        function lineSectionFromTextarea(textarea) {
+            return ['```terminal', ...textarea.value.split('\n'), '```'];
+        }
+
+        function applyFormChanges() {
+            let text = els.rawMarkdown.value;
+            text = replaceSection(text, 'terminal', [
+                `title = ${els.terminalTitle.value}`,
+                'name = ' + els.terminalTitle.value,
+                `build = ${els.terminalBuild.value}`
+            ]);
+
+            text = replaceSection(text, 'commands', COMMANDS.map(([id]) => `${id} = ${byId(`cmd-${id}`).value}`));
+            text = replaceSection(text, 'welcome', lineSectionFromTextarea(els.welcomeText));
+            text = replaceSection(text, 'help', lineSectionFromTextarea(els.helpText));
+            text = replaceSection(text, 'boot.logo', lineSectionFromTextarea(els.bootLogo));
+            text = replaceSection(text, 'diagnostic', [
+                `title = ${els.diagnosticTitle.value}`,
+                `ticker = ${els.diagnosticTicker.value}`
+            ]);
+
+            text = replaceSection(text, 'diagnostic.label', DIAGNOSTICS.map(([id]) => `${id} = ${byId(`diag-label-${id}`).value}`));
+            DIAGNOSTICS.forEach(([id]) => {
+                const lines = [
+                    `state = ${byId(`diag-state-${id}`).value}`,
+                    `status = ${byId(`diag-status-${id}`).value}`,
+                    `level = ${byId(`diag-level-${id}`).value}`,
+                    ...lineSectionFromTextarea(byId(`diag-lines-${id}`))
+                ];
+                text = replaceSection(text, `diagnostic.${id}`, lines);
+            });
+
+            text = replaceSection(text, 'facility', [
+                `title = ${els.facilityTitle.value}`,
+                `ticker = ${els.facilityTicker.value}`
+            ]);
+            text = replaceSection(text, 'facility.grid', [
+                'id = BDR-01',
+                `structure = ${els.facilityStructure.value}`,
+                `power = ${els.facilityPower.value}`,
+                `reserve = ${els.facilityReserve.value}`,
+                `repair = ${els.facilityRepair.value}`
+            ]);
+            text = replaceSection(text, 'facility.overview', lineSectionFromTextarea(els.facilityOverview));
+            text = replaceSection(text, 'facility.zones', lineSectionFromTextarea(els.facilityZones));
+            text = replaceSection(text, 'facility.contact_readout', lineSectionFromTextarea(els.facilityContacts));
+
+            els.rawMarkdown.value = text.trim() + '\n';
+            renderPreview();
+            setStatus('Form changes applied to Markdown.');
+        }
+
+        function fillFormsFromMarkdown() {
+            const values = parseProfile(els.rawMarkdown.value);
+            els.terminalTitle.value = getValue(values, 'terminal.title', 'BLACK DESERT RESEARCH TERMINAL');
+            els.terminalBuild.value = getValue(values, 'terminal.build', '4.7.2');
+            COMMANDS.forEach(([id, label]) => {
+                byId(`cmd-${id}`).value = getValue(values, `commands.${id}`, label.toUpperCase());
+            });
+            els.welcomeText.value = collectLines(values, 'welcome', 120, true);
+            els.helpText.value = collectLines(values, 'help', 120, true);
+            els.bootLogo.value = collectLines(values, 'boot.logo', 20, true);
+            els.diagnosticTitle.value = getValue(values, 'diagnostic.title', 'BASE DIAGNOSTIC');
+            els.diagnosticTicker.value = getValue(values, 'diagnostic.ticker', '');
+
+            DIAGNOSTICS.forEach(([id, label]) => {
+                byId(`diag-label-${id}`).value = getValue(values, `diagnostic.label.${id}`, label);
+                byId(`diag-state-${id}`).value = getValue(values, `diagnostic.${id}.state`, 'warn');
+                byId(`diag-status-${id}`).value = getValue(values, `diagnostic.${id}.status`, 'CHECK');
+                byId(`diag-level-${id}`).value = getValue(values, `diagnostic.${id}.level`, '50');
+                byId(`diag-lines-${id}`).value = collectLines(values, `diagnostic.${id}`, 12, true);
+            });
+
+            els.facilityTitle.value = getValue(values, 'facility.title', 'FACILITY STATUS');
+            els.facilityTicker.value = getValue(values, 'facility.ticker', '');
+            els.facilityStructure.value = getValue(values, 'facility.grid.structure', '77');
+            els.facilityPower.value = getValue(values, 'facility.grid.power', '61');
+            els.facilityReserve.value = getValue(values, 'facility.grid.reserve', '34');
+            els.facilityRepair.value = getValue(values, 'facility.grid.repair', '06 OPEN');
+            els.facilityOverview.value = collectLines(values, 'facility.overview', 12, true);
+            els.facilityZones.value = collectLines(values, 'facility.zones', 12, true);
+            els.facilityContacts.value = collectLines(values, 'facility.contact_readout', 12, true);
+            renderPreview();
+        }
+
+        function addPreviewItem(parent, title, body, state = 'ok') {
+            const item = document.createElement('div');
+            item.className = `preview-item ${state}`.trim();
+            const heading = document.createElement('strong');
+            heading.textContent = title;
+            const content = document.createElement('div');
+            content.textContent = body;
+            item.append(heading, content);
+            parent.appendChild(item);
+        }
+
+        function renderPreview() {
+            const values = parseProfile(els.rawMarkdown.value);
+            els.preview.textContent = '';
+            addPreviewItem(els.preview, 'Terminal', `${getValue(values, 'terminal.title', 'Untitled')} // build ${getValue(values, 'terminal.build', '?')}`);
+            addPreviewItem(els.preview, 'Welcome', collectLines(values, 'welcome').split('\n').slice(0, 5).join('\n'));
+            DIAGNOSTICS.forEach(([id, label]) => {
+                addPreviewItem(
+                    els.preview,
+                    getValue(values, `diagnostic.label.${id}`, label),
+                    `${getValue(values, `diagnostic.${id}.status`, 'CHECK')} // ${getValue(values, `diagnostic.${id}.level`, '0')}%\n${collectLines(values, `diagnostic.${id}`, 4)}`,
+                    getValue(values, `diagnostic.${id}.state`, 'ok')
+                );
+            });
+            addPreviewItem(els.preview, 'Facility', `${getValue(values, 'facility.title', 'FACILITY STATUS')}\n${collectLines(values, 'facility.overview', 5)}`, 'warn');
+        }
+
+        async function loadFromSite() {
+            try {
+                const response = await fetch('content/terminal-content.md', { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                els.rawMarkdown.value = await response.text();
+                fillFormsFromMarkdown();
+                setStatus('Loaded content/terminal-content.md from site.');
+            } catch (error) {
+                els.rawMarkdown.value = DEFAULT_CONTENT;
+                fillFormsFromMarkdown();
+                setStatus('Site content could not be fetched. Loaded editor fallback; use OPEN LOCAL FILE for local editing.', 'warn');
+            }
+        }
+
+        function openLocalFile(file) {
+            const reader = new FileReader();
+            reader.onload = event => {
+                els.rawMarkdown.value = String(event.target.result || '');
+                fillFormsFromMarkdown();
+                setStatus(`Loaded local file: ${file.name}`);
+            };
+            reader.onerror = () => setStatus('Could not read local file.', 'error');
+            reader.readAsText(file);
+        }
+
+        function downloadMarkdown() {
+            applyFormChanges();
+            const blob = new Blob([els.rawMarkdown.value], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'terminal-content.md';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+            setStatus('Downloaded terminal-content.md.');
+        }
+
+        async function saveLocalFile() {
+            if (!window.showSaveFilePicker) {
+                downloadMarkdown();
+                return;
+            }
+            try {
+                applyFormChanges();
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: 'terminal-content.md',
+                    types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }]
+                });
+                const writable = await handle.createWritable();
+                await writable.write(els.rawMarkdown.value);
+                await writable.close();
+                setStatus('Saved local file.');
+            } catch (error) {
+                if (error.name !== 'AbortError') setStatus('Local save failed. Use DOWNLOAD MD instead.', 'error');
+            }
+        }
+
+        function buildDynamicFields() {
+            const commandFragment = document.createDocumentFragment();
+            COMMANDS.forEach(([id, label]) => {
+                const wrapper = document.createElement('label');
+                wrapper.textContent = label;
+                const input = document.createElement('input');
+                input.id = `cmd-${id}`;
+                input.type = 'text';
+                wrapper.appendChild(input);
+                commandFragment.appendChild(wrapper);
+            });
+            byId('commandFields').appendChild(commandFragment);
+
+            const diagFragment = document.createDocumentFragment();
+            DIAGNOSTICS.forEach(([id, label]) => {
+                const card = document.createElement('section');
+                card.className = 'diag-card';
+                const heading = document.createElement('h3');
+                heading.textContent = label.toUpperCase();
+                const fields = document.createElement('div');
+                fields.className = 'field-grid';
+                fields.innerHTML = `
+                    <label>Label <input id="diag-label-${id}" type="text"></label>
+                    <label>Status <input id="diag-status-${id}" type="text"></label>
+                    <label>State
+                        <select id="diag-state-${id}">
+                            <option value="ok">ok</option>
+                            <option value="warn">warn</option>
+                            <option value="alert">alert</option>
+                            <option value="malfunction">malfunction</option>
+                        </select>
+                    </label>
+                    <label>Level <input id="diag-level-${id}" type="range" min="0" max="100"></label>
+                `;
+                const lineLabel = document.createElement('label');
+                lineLabel.textContent = 'Readout lines';
+                const textarea = document.createElement('textarea');
+                textarea.id = `diag-lines-${id}`;
+                lineLabel.appendChild(textarea);
+                card.append(heading, fields, lineLabel);
+                diagFragment.appendChild(card);
+            });
+            byId('diagnosticFields').appendChild(diagFragment);
+        }
+
+        function init() {
+            ['status', 'fileInput', 'terminalTitle', 'terminalBuild', 'welcomeText', 'helpText', 'bootLogo',
+                'diagnosticTitle', 'diagnosticTicker', 'facilityTitle', 'facilityTicker', 'facilityStructure',
+                'facilityPower', 'facilityReserve', 'facilityRepair', 'facilityOverview', 'facilityZones',
+                'facilityContacts', 'rawMarkdown', 'preview'].forEach(id => { els[id] = byId(id); });
+
+            buildDynamicFields();
+            byId('loadSiteBtn').addEventListener('click', loadFromSite);
+            byId('openFileBtn').addEventListener('click', () => els.fileInput.click());
+            byId('applyBtn').addEventListener('click', applyFormChanges);
+            byId('reloadBtn').addEventListener('click', () => {
+                fillFormsFromMarkdown();
+                setStatus('Forms reloaded from raw Markdown.');
+            });
+            byId('downloadBtn').addEventListener('click', downloadMarkdown);
+            byId('saveLocalBtn').addEventListener('click', saveLocalFile);
+            els.fileInput.addEventListener('change', event => {
+                const file = event.target.files && event.target.files[0];
+                if (file) openLocalFile(file);
+                event.target.value = '';
+            });
+            els.rawMarkdown.addEventListener('input', () => renderPreview());
+            if (window.showSaveFilePicker) byId('saveLocalBtn').classList.remove('hidden');
+            loadFromSite();
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

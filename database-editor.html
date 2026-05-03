@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ares Database Markdown Editor</title>
+    <link rel="icon" href="data:,">
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #030604;
+            --panel: #07130b;
+            --panel-2: #0b1b10;
+            --line: rgba(32, 194, 14, 0.28);
+            --amber-line: rgba(255, 176, 0, 0.42);
+            --text: #c8f8c0;
+            --muted: #71936f;
+            --green: #20c20e;
+            --cyan: #00d4aa;
+            --amber: #ffb000;
+            --red: #ff4b4b;
+            --radius: 8px;
+            --shadow: 0 0 34px rgba(32, 194, 14, 0.11);
+            --font: "IBM Plex Mono", "Consolas", "Courier New", monospace;
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            background:
+                linear-gradient(rgba(32, 194, 14, 0.03) 1px, transparent 1px),
+                radial-gradient(circle at top right, rgba(255, 176, 0, 0.1), transparent 34rem),
+                var(--bg);
+            background-size: 100% 4px, auto, auto;
+            color: var(--text);
+            font-family: var(--font);
+        }
+
+        body {
+            min-height: 100svh;
+            padding: 16px;
+        }
+
+        button,
+        input,
+        textarea,
+        select {
+            font: inherit;
+        }
+
+        button {
+            min-height: 42px;
+            border: 1px solid var(--amber-line);
+            background: rgba(255, 176, 0, 0.09);
+            color: var(--amber);
+            padding: 9px 12px;
+            cursor: pointer;
+        }
+
+        button:hover { border-color: var(--amber); }
+        button:focus-visible,
+        input:focus-visible,
+        textarea:focus-visible,
+        select:focus-visible {
+            outline: 2px solid var(--amber);
+            outline-offset: 3px;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            border: 1px solid var(--line);
+            background: rgba(0, 12, 4, 0.84);
+            color: var(--text);
+            padding: 10px;
+        }
+
+        textarea {
+            min-height: 150px;
+            resize: vertical;
+            line-height: 1.45;
+        }
+
+        label {
+            display: grid;
+            gap: 6px;
+            color: var(--muted);
+            font-size: 0.78rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .app {
+            width: min(1460px, 100%);
+            margin-inline: auto;
+        }
+
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: end;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            border: 1px solid var(--line);
+            background: rgba(3, 12, 5, 0.88);
+            box-shadow: var(--shadow);
+            padding: 14px;
+        }
+
+        h1 {
+            margin: 0 0 6px;
+            color: var(--amber);
+            font-size: clamp(1.15rem, 2.4vw, 1.7rem);
+            letter-spacing: 0.08em;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: var(--muted);
+            max-width: 76ch;
+            line-height: 1.5;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .status {
+            min-height: 1.4em;
+            margin: 0 0 12px;
+            color: var(--cyan);
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 260px minmax(0, 1fr) minmax(320px, 0.82fr);
+            gap: 14px;
+            align-items: start;
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            background: rgba(7, 19, 11, 0.92);
+            box-shadow: var(--shadow);
+            padding: 14px;
+        }
+
+        .panel h2 {
+            margin: 0 0 12px;
+            color: var(--cyan);
+            font-size: 1rem;
+            letter-spacing: 0.08em;
+        }
+
+        .source-list,
+        .entry-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .source-btn,
+        .entry-btn {
+            width: 100%;
+            min-height: 0;
+            text-align: left;
+            color: var(--text);
+            border-color: rgba(32, 194, 14, 0.26);
+            background: rgba(0, 14, 4, 0.66);
+        }
+
+        .entry-btn.active {
+            color: var(--amber);
+            border-color: var(--amber);
+            background: rgba(255, 176, 0, 0.12);
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .entry-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .danger {
+            border-color: rgba(255, 75, 75, 0.52);
+            color: var(--red);
+            background: rgba(255, 75, 75, 0.08);
+        }
+
+        .preview {
+            display: grid;
+            gap: 10px;
+        }
+
+        .preview-card {
+            border-left: 3px solid var(--green);
+            background: rgba(0, 18, 6, 0.56);
+            padding: 9px 10px;
+            white-space: pre-wrap;
+        }
+
+        .preview-card.restricted { border-color: var(--red); }
+
+        .note {
+            color: var(--muted);
+            line-height: 1.5;
+            font-size: 0.88rem;
+        }
+
+        .hidden { display: none; }
+
+        @media (max-width: 1120px) {
+            .layout {
+                grid-template-columns: 1fr 1fr;
+            }
+            .sources {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 760px) {
+            body { padding: 10px; }
+            .layout,
+            .field-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="app">
+        <header>
+            <div>
+                <h1>ARES DATABASE EDITOR</h1>
+                <p class="subtitle">Edit Markdown database packages for the terminal. GitHub Pages cannot write back into your repository, so save by downloading the edited file or using the optional browser local-save feature.</p>
+            </div>
+            <div class="toolbar" aria-label="Editor actions">
+                <button id="loadManifestBtn" type="button">LOAD MANIFEST</button>
+                <button id="openFileBtn" type="button">OPEN LOCAL FILE</button>
+                <button id="addEntryBtn" type="button">ADD ENTRY</button>
+                <button id="downloadMdBtn" type="button">DOWNLOAD MD</button>
+                <button id="downloadDatBtn" type="button">DOWNLOAD ENCRYPTED DAT</button>
+                <button id="saveLocalBtn" type="button" class="hidden">SAVE LOCAL FILE</button>
+            </div>
+        </header>
+
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <input id="fileInput" class="hidden" type="file" accept=".md,.txt,.dat,.db,.bin">
+
+        <div class="layout">
+            <section class="panel sources" aria-label="Database source list">
+                <h2>SOURCES</h2>
+                <div id="sourceList" class="source-list"></div>
+                <p class="note">Manifest loading uses <strong>databases/manifest.json</strong>. If you opened this page directly as a local file and fetch is blocked, use OPEN LOCAL FILE.</p>
+            </section>
+
+            <section class="panel" aria-label="Database entry editor">
+                <h2>DATABASE PACKAGE</h2>
+                <div class="field-grid">
+                    <label>Package id
+                        <input id="metaId" type="text">
+                    </label>
+                    <label>Password
+                        <input id="metaPassword" type="text">
+                    </label>
+                    <label>Title
+                        <input id="metaTitle" type="text">
+                    </label>
+                    <label>Description
+                        <input id="metaDescription" type="text">
+                    </label>
+                </div>
+
+                <div class="entry-actions">
+                    <button id="duplicateEntryBtn" type="button">DUPLICATE ENTRY</button>
+                    <button id="removeEntryBtn" type="button" class="danger">REMOVE ENTRY</button>
+                </div>
+
+                <div class="field-grid">
+                    <label>Entry id
+                        <input id="entryId" type="text">
+                    </label>
+                    <label>Title
+                        <input id="entryTitle" type="text">
+                    </label>
+                    <label>Category
+                        <input id="entryCategory" type="text" list="categoryList">
+                    </label>
+                    <label>Clearance
+                        <input id="entryClearance" type="range" min="1" max="5">
+                    </label>
+                    <label>Tags / keywords
+                        <input id="entryTags" type="text">
+                    </label>
+                    <label>Related entries
+                        <input id="entryRelated" type="text">
+                    </label>
+                </div>
+
+                <label>Optional redacted / glitch text
+                    <input id="entryRedacted" type="text">
+                </label>
+                <label>Body text
+                    <textarea id="entryBody"></textarea>
+                </label>
+                <datalist id="categoryList"></datalist>
+            </section>
+
+            <section class="panel" aria-label="Entry list and preview">
+                <h2>ENTRIES</h2>
+                <div id="entryList" class="entry-list"></div>
+                <h2 style="margin-top:16px">PREVIEW</h2>
+                <div id="preview" class="preview"></div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const ENCRYPTION_KEY = 'Shelby';
+        const DEFAULT_DATABASE = `---
+id: database1
+title: Personnel Registry
+description: Employee, contractor, and missing staff notes for Black Desert Research.
+password: database1
+---
+
+<!--
+Add categories with: ## Category: CATEGORY NAME
+Add entries with: ### Entry: Entry Title
+Fields: id, title, category, tags, clearance, related, redacted, body.
+Comments are hidden in the terminal.
+-->
+
+## Category: PERSONNEL
+
+### Entry: Director Halden Voss
+id: personnel-voss
+title: Director Halden Voss
+category: PERSONNEL
+tags: director, command, ares
+clearance: 2
+related: executive-evacuation
+body:
+Facility Director assigned by Ares Macrotechnology Special Projects.
+Last confirmed in Command Core during external relay failure.
+`;
+
+        const state = {
+            metadata: {},
+            entries: [],
+            selectedIndex: 0,
+            sourceName: 'database1.md'
+        };
+
+        const els = {};
+
+        function byId(id) {
+            return document.getElementById(id);
+        }
+
+        function normalizeKey(key) {
+            return String(key || '').trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9._-]/g, '');
+        }
+
+        function cleanValue(value) {
+            let cleaned = String(value || '').trim();
+            if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+                cleaned = cleaned.slice(1, -1);
+            }
+            return cleaned.replace(/\\n/g, '\n');
+        }
+
+        function setStatus(message, tone = 'ok') {
+            els.status.textContent = message;
+            els.status.style.color = tone === 'error' ? 'var(--red)' : tone === 'warn' ? 'var(--amber)' : 'var(--cyan)';
+        }
+
+        function parseMetadata(lines) {
+            const metadata = {};
+            lines.forEach(line => {
+                const pair = line.match(/^([a-z0-9_.-]+)\s*:\s*(.*)$/i);
+                if (pair) metadata[normalizeKey(pair[1])] = cleanValue(pair[2]);
+            });
+            return metadata;
+        }
+
+        function parseDatabaseMarkdown(text, source = 'database.md') {
+            const clean = String(text || '').replace(/\r/g, '').replace(/<!--[\s\S]*?-->/g, '');
+            const lines = clean.split('\n');
+            const metadataLines = [];
+            let startIndex = 0;
+            if (lines[0] && lines[0].trim() === '---') {
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim() === '---') {
+                        startIndex = i + 1;
+                        break;
+                    }
+                    metadataLines.push(lines[i]);
+                }
+            }
+
+            const metadata = parseMetadata(metadataLines);
+            const entries = [];
+            let category = 'GENERAL';
+            let current = null;
+            let bodyMode = false;
+
+            function finishEntry() {
+                if (!current) return;
+                current.title = current.title || current.id || 'Untitled Entry';
+                current.category = (current.category || category || 'GENERAL').toUpperCase();
+                current.body = current.bodyLines.join('\n').trim();
+                delete current.bodyLines;
+                entries.push(current);
+                current = null;
+                bodyMode = false;
+            }
+
+            for (let i = startIndex; i < lines.length; i++) {
+                const raw = lines[i];
+                const line = raw.trim();
+                if (!line) {
+                    if (bodyMode && current) current.bodyLines.push('');
+                    continue;
+                }
+
+                const categoryMatch = line.match(/^##\s+Category\s*:\s*(.+)$/i);
+                if (categoryMatch) {
+                    finishEntry();
+                    category = categoryMatch[1].trim().toUpperCase();
+                    continue;
+                }
+
+                const entryMatch = line.match(/^###\s+(?:Entry\s*:\s*)?(.+)$/i);
+                if (entryMatch) {
+                    finishEntry();
+                    current = {
+                        id: '',
+                        title: entryMatch[1].trim(),
+                        category,
+                        tags: '',
+                        clearance: '1',
+                        related: '',
+                        redacted: '',
+                        bodyLines: []
+                    };
+                    bodyMode = false;
+                    continue;
+                }
+
+                if (!current) continue;
+                if (/^body\s*:\s*$/i.test(line)) {
+                    bodyMode = true;
+                    continue;
+                }
+
+                const pair = line.match(/^([a-z0-9_.-]+)\s*:\s*(.*)$/i);
+                if (pair && !bodyMode) {
+                    const key = normalizeKey(pair[1]);
+                    const value = cleanValue(pair[2]);
+                    if (key === 'keywords') current.tags = value;
+                    else if (key === 'clearance_level') current.clearance = value;
+                    else current[key] = value;
+                    continue;
+                }
+
+                current.bodyLines.push(raw.replace(/^\s{0,4}/, ''));
+            }
+            finishEntry();
+
+            return { metadata, entries, source };
+        }
+
+        function serializeDatabase() {
+            syncEntryFromForm();
+            syncMetadataFromForm();
+            const metadata = state.metadata;
+            const lines = [
+                '---',
+                `id: ${metadata.id || 'database'}`,
+                `title: ${metadata.title || 'Untitled Database'}`,
+                `description: ${metadata.description || ''}`,
+                `password: ${metadata.password || metadata.id || 'database'}`,
+                '---',
+                '',
+                '<!--',
+                'DATABASE EDITING NOTES',
+                'Change password above to change the roleplay database password.',
+                'Add categories with: ## Category: CATEGORY NAME',
+                'Add entries with: ### Entry: Entry Title',
+                'Supported fields: id, title, category, tags, clearance, related, redacted, body.',
+                'Everything after body: belongs to the entry body until the next entry or category.',
+                'These comments are stripped before display.',
+                '-->',
+                ''
+            ];
+
+            const grouped = new Map();
+            state.entries.forEach(entry => {
+                const category = (entry.category || 'GENERAL').toUpperCase();
+                if (!grouped.has(category)) grouped.set(category, []);
+                grouped.get(category).push(entry);
+            });
+
+            grouped.forEach((entries, category) => {
+                lines.push(`## Category: ${category}`, '');
+                entries.forEach(entry => {
+                    lines.push(`### Entry: ${entry.title || 'Untitled Entry'}`);
+                    lines.push(`id: ${entry.id || slugify(entry.title || 'entry')}`);
+                    lines.push(`title: ${entry.title || 'Untitled Entry'}`);
+                    lines.push(`category: ${category}`);
+                    lines.push(`tags: ${entry.tags || ''}`);
+                    lines.push(`clearance: ${entry.clearance || '1'}`);
+                    if (entry.related) lines.push(`related: ${entry.related}`);
+                    if (entry.redacted) lines.push(`redacted: ${entry.redacted}`);
+                    lines.push('body:');
+                    lines.push(entry.body || 'NO BODY TEXT AVAILABLE.');
+                    lines.push('');
+                });
+            });
+
+            return lines.join('\n').trim() + '\n';
+        }
+
+        function slugify(value) {
+            return String(value || 'entry').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'entry';
+        }
+
+        function applyParsedDatabase(parsed, sourceName) {
+            state.metadata = {
+                id: parsed.metadata.id || slugify(parsed.metadata.title || sourceName || 'database'),
+                title: parsed.metadata.title || 'Untitled Database',
+                description: parsed.metadata.description || '',
+                password: parsed.metadata.password || parsed.metadata.id || 'database'
+            };
+            state.entries = parsed.entries.length ? parsed.entries : [{
+                id: 'new-entry',
+                title: 'New Entry',
+                category: 'GENERAL',
+                tags: '',
+                clearance: '1',
+                related: '',
+                redacted: '',
+                body: 'Entry body text.'
+            }];
+            state.selectedIndex = 0;
+            state.sourceName = sourceName || parsed.source || 'database.md';
+            fillMetadataForm();
+            renderEntryList();
+            fillEntryForm();
+            renderPreview();
+        }
+
+        function fillMetadataForm() {
+            els.metaId.value = state.metadata.id || '';
+            els.metaTitle.value = state.metadata.title || '';
+            els.metaDescription.value = state.metadata.description || '';
+            els.metaPassword.value = state.metadata.password || '';
+        }
+
+        function syncMetadataFromForm() {
+            state.metadata.id = els.metaId.value.trim() || 'database';
+            state.metadata.title = els.metaTitle.value.trim() || 'Untitled Database';
+            state.metadata.description = els.metaDescription.value.trim();
+            state.metadata.password = els.metaPassword.value.trim() || state.metadata.id;
+        }
+
+        function currentEntry() {
+            return state.entries[state.selectedIndex] || null;
+        }
+
+        function fillEntryForm() {
+            const entry = currentEntry();
+            const disabled = !entry;
+            ['entryId', 'entryTitle', 'entryCategory', 'entryTags', 'entryRelated', 'entryRedacted', 'entryBody'].forEach(id => {
+                els[id].disabled = disabled;
+            });
+            els.entryClearance.disabled = disabled;
+            if (!entry) return;
+            els.entryId.value = entry.id || '';
+            els.entryTitle.value = entry.title || '';
+            els.entryCategory.value = entry.category || 'GENERAL';
+            els.entryClearance.value = entry.clearance || '1';
+            els.entryTags.value = entry.tags || '';
+            els.entryRelated.value = entry.related || '';
+            els.entryRedacted.value = entry.redacted || '';
+            els.entryBody.value = entry.body || '';
+        }
+
+        function syncEntryFromForm() {
+            const entry = currentEntry();
+            if (!entry) return;
+            entry.id = els.entryId.value.trim() || slugify(els.entryTitle.value);
+            entry.title = els.entryTitle.value.trim() || 'Untitled Entry';
+            entry.category = (els.entryCategory.value.trim() || 'GENERAL').toUpperCase();
+            entry.clearance = els.entryClearance.value || '1';
+            entry.tags = els.entryTags.value.trim();
+            entry.related = els.entryRelated.value.trim();
+            entry.redacted = els.entryRedacted.value.trim();
+            entry.body = els.entryBody.value.trim();
+        }
+
+        function renderEntryList() {
+            els.entryList.textContent = '';
+            const categories = new Set();
+            state.entries.forEach(entry => categories.add((entry.category || 'GENERAL').toUpperCase()));
+            els.categoryList.textContent = '';
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                els.categoryList.appendChild(option);
+            });
+
+            state.entries.forEach((entry, index) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `entry-btn ${index === state.selectedIndex ? 'active' : ''}`.trim();
+                button.textContent = `[${entry.category || 'GENERAL'}] ${entry.title || 'Untitled Entry'}`;
+                button.addEventListener('click', () => {
+                    syncEntryFromForm();
+                    state.selectedIndex = index;
+                    renderEntryList();
+                    fillEntryForm();
+                    renderPreview();
+                });
+                els.entryList.appendChild(button);
+            });
+        }
+
+        function addEntry() {
+            syncEntryFromForm();
+            state.entries.push({
+                id: `entry-${state.entries.length + 1}`,
+                title: 'New Entry',
+                category: 'GENERAL',
+                tags: '',
+                clearance: '1',
+                related: '',
+                redacted: '',
+                body: 'Entry body text.'
+            });
+            state.selectedIndex = state.entries.length - 1;
+            renderEntryList();
+            fillEntryForm();
+            renderPreview();
+            setStatus('New entry added.');
+        }
+
+        function duplicateEntry() {
+            const entry = currentEntry();
+            if (!entry) return;
+            syncEntryFromForm();
+            const copy = { ...entry, id: `${entry.id || 'entry'}-copy`, title: `${entry.title || 'Entry'} Copy` };
+            state.entries.splice(state.selectedIndex + 1, 0, copy);
+            state.selectedIndex += 1;
+            renderEntryList();
+            fillEntryForm();
+            renderPreview();
+            setStatus('Entry duplicated.');
+        }
+
+        function removeEntry() {
+            if (state.entries.length <= 1) {
+                setStatus('At least one entry is required.', 'warn');
+                return;
+            }
+            state.entries.splice(state.selectedIndex, 1);
+            state.selectedIndex = Math.max(0, state.selectedIndex - 1);
+            renderEntryList();
+            fillEntryForm();
+            renderPreview();
+            setStatus('Entry removed.');
+        }
+
+        function renderPreview() {
+            syncMetadataFromForm();
+            syncEntryFromForm();
+            els.preview.textContent = '';
+            const summary = document.createElement('div');
+            summary.className = 'preview-card';
+            summary.textContent = `${state.metadata.title}\nID: ${state.metadata.id}\nPassword: ${state.metadata.password}\nEntries: ${state.entries.length}`;
+            els.preview.appendChild(summary);
+
+            const entry = currentEntry();
+            if (entry) {
+                const card = document.createElement('div');
+                card.className = `preview-card ${Number(entry.clearance || 1) >= 4 || entry.category === 'CONFIDENTIAL' ? 'restricted' : ''}`.trim();
+                card.textContent = `[${entry.category}] ${entry.title}\nID: ${entry.id}\nCLEARANCE: ${entry.clearance}\nTAGS: ${entry.tags}\n${entry.body}`;
+                els.preview.appendChild(card);
+            }
+
+            const categories = {};
+            state.entries.forEach(entry => {
+                const category = entry.category || 'GENERAL';
+                categories[category] = (categories[category] || 0) + 1;
+            });
+            const categoryCard = document.createElement('div');
+            categoryCard.className = 'preview-card';
+            categoryCard.textContent = Object.entries(categories).map(([category, count]) => `${category}: ${count}`).join('\n');
+            els.preview.appendChild(categoryCard);
+        }
+
+        async function loadManifest() {
+            try {
+                const response = await fetch('databases/manifest.json', { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const manifest = await response.json();
+                renderSourceList(manifest.databases || []);
+                setStatus('Loaded databases/manifest.json.');
+                if (manifest.databases && manifest.databases[0]) loadDatabaseFromSite(manifest.databases[0]);
+            } catch (error) {
+                renderSourceList([]);
+                applyParsedDatabase(parseDatabaseMarkdown(DEFAULT_DATABASE, 'fallback'), 'database1.md');
+                setStatus('Manifest fetch failed. Loaded editor fallback; use OPEN LOCAL FILE for local editing.', 'warn');
+            }
+        }
+
+        function renderSourceList(databases) {
+            els.sourceList.textContent = '';
+            if (!databases.length) {
+                const note = document.createElement('p');
+                note.className = 'note';
+                note.textContent = 'No manifest entries loaded.';
+                els.sourceList.appendChild(note);
+                return;
+            }
+            databases.forEach(item => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'source-btn';
+                button.textContent = `${item.displayName || item.file}\n${item.description || ''}`;
+                button.addEventListener('click', () => loadDatabaseFromSite(item));
+                els.sourceList.appendChild(button);
+            });
+        }
+
+        async function loadDatabaseFromSite(item) {
+            try {
+                const response = await fetch(`databases/${item.file}`, { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const text = await response.text();
+                applyParsedDatabase(parseDatabaseMarkdown(text, item.file), item.file);
+                setStatus(`Loaded ${item.file}.`);
+            } catch (error) {
+                setStatus(`Could not load ${item.file}. Check path casing or use local file import.`, 'error');
+            }
+        }
+
+        function xorCrypt(text) {
+            let output = '';
+            for (let i = 0; i < text.length; i++) {
+                output += String.fromCharCode(text.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length));
+            }
+            return output;
+        }
+
+        function encodeEncrypted(text) {
+            return btoa(unescape(encodeURIComponent(xorCrypt(text))));
+        }
+
+        function decodeEncrypted(encoded) {
+            const raw = atob(String(encoded || '').trim());
+            const legacy = xorCrypt(raw);
+            try {
+                const utf8Encrypted = decodeURIComponent(escape(raw));
+                return xorCrypt(utf8Encrypted);
+            } catch (error) {
+                return legacy;
+            }
+        }
+
+        function openLocalFile(file) {
+            const reader = new FileReader();
+            reader.onload = event => {
+                try {
+                    let text = String(event.target.result || '');
+                    if (/\.(dat|db|bin)$/i.test(file.name)) text = decodeEncrypted(text);
+                    const parsed = parseDatabaseMarkdown(text, file.name);
+                    if (!parsed.entries.length) throw new Error('No entries found');
+                    applyParsedDatabase(parsed, file.name);
+                    setStatus(`Loaded local file: ${file.name}`);
+                } catch (error) {
+                    setStatus('Could not parse database file. Check Markdown structure or encrypted DAT format.', 'error');
+                }
+            };
+            reader.onerror = () => setStatus('Could not read local file.', 'error');
+            reader.readAsText(file);
+        }
+
+        function downloadFile(filename, content, type) {
+            const blob = new Blob([content], { type });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadMarkdown() {
+            const filename = `${state.metadata.id || 'database'}.md`;
+            downloadFile(filename, serializeDatabase(), 'text/markdown;charset=utf-8');
+            setStatus(`Downloaded ${filename}.`);
+        }
+
+        function downloadEncryptedDat() {
+            const filename = `${state.metadata.id || 'database'}.dat`;
+            downloadFile(filename, encodeEncrypted(serializeDatabase()), 'application/octet-stream');
+            setStatus(`Downloaded encrypted ${filename}.`);
+        }
+
+        async function saveLocalFile() {
+            if (!window.showSaveFilePicker) {
+                downloadMarkdown();
+                return;
+            }
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: `${state.metadata.id || 'database'}.md`,
+                    types: [{ description: 'Markdown database', accept: { 'text/markdown': ['.md'] } }]
+                });
+                const writable = await handle.createWritable();
+                await writable.write(serializeDatabase());
+                await writable.close();
+                setStatus('Saved local file.');
+            } catch (error) {
+                if (error.name !== 'AbortError') setStatus('Local save failed. Use DOWNLOAD MD instead.', 'error');
+            }
+        }
+
+        function bindLiveUpdates() {
+            ['metaId', 'metaTitle', 'metaDescription', 'metaPassword', 'entryId', 'entryTitle',
+                'entryCategory', 'entryClearance', 'entryTags', 'entryRelated', 'entryRedacted',
+                'entryBody'].forEach(id => {
+                els[id].addEventListener('input', () => {
+                    syncMetadataFromForm();
+                    syncEntryFromForm();
+                    renderEntryList();
+                    renderPreview();
+                });
+            });
+        }
+
+        function init() {
+            ['status', 'fileInput', 'sourceList', 'metaId', 'metaTitle', 'metaDescription', 'metaPassword',
+                'entryList', 'entryId', 'entryTitle', 'entryCategory', 'entryClearance', 'entryTags',
+                'entryRelated', 'entryRedacted', 'entryBody', 'categoryList', 'preview'].forEach(id => {
+                els[id] = byId(id);
+            });
+
+            byId('loadManifestBtn').addEventListener('click', loadManifest);
+            byId('openFileBtn').addEventListener('click', () => els.fileInput.click());
+            byId('addEntryBtn').addEventListener('click', addEntry);
+            byId('duplicateEntryBtn').addEventListener('click', duplicateEntry);
+            byId('removeEntryBtn').addEventListener('click', removeEntry);
+            byId('downloadMdBtn').addEventListener('click', downloadMarkdown);
+            byId('downloadDatBtn').addEventListener('click', downloadEncryptedDat);
+            byId('saveLocalBtn').addEventListener('click', saveLocalFile);
+            els.fileInput.addEventListener('change', event => {
+                const file = event.target.files && event.target.files[0];
+                if (file) openLocalFile(file);
+                event.target.value = '';
+            });
+            if (window.showSaveFilePicker) byId('saveLocalBtn').classList.remove('hidden');
+            bindLiveUpdates();
+            loadManifest();
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
