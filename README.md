@@ -15,6 +15,8 @@ Admin Password: 01100001 01110000 01101111 01100011 01100001 01101100 01111001 0
 
 Databases have default passwords (database 1, database 2, database3 etc.). Passwords can be changed in the corresponding .md files.
 
+In the content folder is a .md file, where you can edit all the Information that is shown in the boot loader, the terminal etc.
+
 https://tonkatsura.github.io/RetroSRBlackDesertTerminal/
 
 https://github.com/TonkatsuRa/RetroSRBlackDesertTerminal/blob/main/database-editor.html
